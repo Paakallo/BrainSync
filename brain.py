@@ -55,7 +55,7 @@ def parse_packet(packet_data_list:list):
         print(f"{signal_strength},{attention},{meditation},{','.join(map(str, eeg_values))}")
         
         packet_data_list.append([
-            datetime.datetime.now().timestamp(),
+            datetime.datetime.now(),
             signal_strength,
             attention,
             meditation,
@@ -140,14 +140,12 @@ def save_data_to_csv(data, serial_connection,name,surname,age):
         'low_gamma', 'high_gamma'
     ])
 
-    df['timestamp'] = df['timestamp'] - df.loc[0, 'timestamp']
+    # df['timestamp'] = df['timestamp'] - df.loc[0, 'timestamp']
 
     if not os.path.exists(f'{name}{surname}{age}'):    
     	os.mkdir(f'{name}{surname}{age}')
-    file_index = 1
-    while os.path.exists(f'{name}{surname}{age}/{datetime.date.today()}_{file_index}.csv'):
-        file_index += 1
 
+    file_index = check_file(name,surname,age)
     df.to_csv(f'{name}{surname}{age}/{datetime.date.today()}_{file_index}.csv', index=False)
 
     if serial_connection.isOpen():
@@ -175,14 +173,35 @@ def plot_eeg_data(df, file_index,name,surname,age):
     plt.savefig(f'{name}{surname}{age}/{datetime.date.today()}_{file_index}.png')
     plt.show()
 
-
+def check_file(name,surname,age):
+    file_index = 1
+    while os.path.exists(f'{name}{surname}{age}/{datetime.date.today()}_{file_index}.csv'):
+        file_index += 1
+    return file_index
 def main(name,surname,age):
 
     if len(sys.argv) < 2:
         print(f"Usage: {sys.argv[0]} <COM PORT>")
         sys.exit(1)
 
+    check_no = True
+    while check_no:
+        num = int(input("Type procedure part"))
+        if os.path.exists(f'{name}{surname}{age}/{datetime.date.today()}_{num}.csv'):
+            answer = input('This procedure has been completed, do you want to rewrite a file?\n Type Y|N (Yes|No)')
+            answer = answer.upper(answer)
+
+            if answer == 'Y':
+                os.remove(f'{name}{surname}{age}/{datetime.date.today()}_{num}.csv')
+                check_no = False
+            elif answer == 'N':
+                continue
+        else:
+            check_no = False
     input("Press Enter to start reading data...")
+    print(['timestamp', 'signal_strength', 'attention', 'meditation',
+        'delta', 'theta', 'low_alpha', 'high_alpha', 'low_beta', 'high_beta',
+        'low_gamma', 'high_gamma'])
     read_serial_data(sys.argv[1],name,surname,age)
 
 
@@ -190,6 +209,7 @@ if __name__ == '__main__':
     name = input('Type Name:')
     surname = input('Type Surname:')
     age = input('Type Age:')
+
     if not os.path.exists(f'{name}{surname}{age}'):    
     	os.mkdir(f'{name}{surname}{age}')
     
