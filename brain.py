@@ -52,7 +52,7 @@ def parse_packet(packet_data_list:list):
                 eeg_raw_value = ord(packet_buffer[idx + 1]) << 8 | ord(packet_buffer[idx + 2])
                 idx += 4
         
-        print(f"{signal_strength},{attention},{meditation},{','.join(map(str, eeg_values))}")
+        print(f"{signal_strength},         {attention},         {meditation},{'         ,'.join(map(str, eeg_values))}")
         
         packet_data_list.append([
             datetime.datetime.now(),
@@ -157,18 +157,22 @@ def plot_eeg_data(df, file_index,name,surname,age):
     """
     Plot the EEG data and save the plot as a PNG file.
     """
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(18,10))
 
     ax.set_xlabel('Time [s]')
     ax.set_ylabel('Amplitude')
     ax.set_title("Brain Scan")
-
+    
+    last_min = df.loc[0,'timestamp'] + datetime.timedelta(minutes=1)
+    
+    df = df[df['timestamp']<=last_min]
     time = df['timestamp'].values
     for column in df.columns:
         if column == 'timestamp':
             continue
         ax.plot(time, df[column].values, label=column)
-
+        
+    fig.tight_layout()
     ax.legend(loc='upper right')
     plt.savefig(f'{name}{surname}{age}/{datetime.date.today()}_{file_index}.png')
     plt.show()
@@ -189,7 +193,7 @@ def main(name,surname,age):
         num = int(input("Type procedure part"))
         if os.path.exists(f'{name}{surname}{age}/{datetime.date.today()}_{num}.csv'):
             answer = input('This procedure has been completed, do you want to rewrite a file?\n Type Y|N (Yes|No)')
-            answer = answer.upper(answer)
+            answer = answer.upper()
 
             if answer == 'Y':
                 os.remove(f'{name}{surname}{age}/{datetime.date.today()}_{num}.csv')
@@ -199,9 +203,9 @@ def main(name,surname,age):
         else:
             check_no = False
     input("Press Enter to start reading data...")
-    print(['timestamp', 'signal_strength', 'attention', 'meditation',
-        'delta', 'theta', 'low_alpha', 'high_alpha', 'low_beta', 'high_beta',
-        'low_gamma', 'high_gamma'])
+    print('timestamp   ', 'signal_strength   ', 'attention   ', 'meditation   ',
+        'delta   ', 'theta   ', 'low_alpha   ', 'high_alpha   ', 'low_beta   ', 'high_beta   ',
+        'low_gamma   ', 'high_gamma   ')
     read_serial_data(sys.argv[1],name,surname,age)
 
 
@@ -212,6 +216,8 @@ if __name__ == '__main__':
 
     if not os.path.exists(f'{name}{surname}{age}'):    
     	os.mkdir(f'{name}{surname}{age}')
+    else:
+        print('This folder already exists')
     
     while True:
     	main(name,surname,age)
