@@ -1,5 +1,7 @@
 import tkinter as tk
-
+from tkinter import messagebox
+from tkinter import dialog
+import brain as b
 class MainWindow(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -15,14 +17,24 @@ class MainWindow(tk.Tk):
         self.stop_button = tk.Button(self, text="Stop", command=self.stop_record)
         self.stop_button.pack()
 
-        
+        self.continue_button = tk.Button(self, text="Continue", command=self.continue_record)
+        self.continue_button.pack()
+
+        self.select_button = tk.Button(self, text="Select patient", command=self.select_patient)
+        self.select_button.pack()
+
+        # patient data
+        self.name = None
+        self.surname = None
+        self.age = None
+
         self.parts = 0
         self.sel_pat = False
 
-    def _no_patient_selected_(self):
+    def _patient_selection_(self, text=''):
         self.dialog = tk.Toplevel()
-        self.dialog.title("Error")
-        self.label = tk.Label(self.dialog, text="Select patient to start recording")
+        self.dialog.title("Patient select")
+        self.label = tk.Label(self.dialog, text=f"Patient {text} selected")
         self.label.pack()
 
         self.continue_button = tk.Button(
@@ -43,22 +55,81 @@ class MainWindow(tk.Tk):
             self.dialog, text="No", command=lambda: self.dialog.destroy())
         self.no_button.pack()
 
+    def _type_data(self):
+        dialog = tk.Toplevel()
+        dialog.title("Enter Patient Information")
+        dialog.geometry("300x200")
+        
+        # Labels and Entry Fields
+        tk.Label(dialog, text="Name:").grid(row=0, column=0, padx=10, pady=5)
+        entry_name = tk.Entry(dialog)
+        entry_name.grid(row=0, column=1, padx=10, pady=5)
+
+        tk.Label(dialog, text="Surname:").grid(row=1, column=0, padx=10, pady=5)
+        entry_surname = tk.Entry(dialog)
+        entry_surname.grid(row=1, column=1, padx=10, pady=5)
+
+        tk.Label(dialog, text="Age:").grid(row=2, column=0, padx=10, pady=5)
+        entry_age = tk.Entry(dialog)
+        entry_age.grid(row=2, column=1, padx=10, pady=5)
+
+
+        def validate_and_close():
+            self.name = entry_name.get().strip()
+            self.surname = entry_surname.get().strip()
+            self.age = entry_age.get().strip()
+            if self.name and self.surname and self.age:
+                try:
+                    int(self.age)  # Ensure age is a number
+                    
+                    if not b.add_patient(self.name, self.surname, self.age):
+                        messagebox.showwarning("Existing record", "Patient already exists")
+                    else:
+                        self.sel_pat = True
+                        dialog.destroy()
+                except ValueError:
+                    messagebox.showwarning("Invalid Input", "Age must be a number.")
+            else:
+                messagebox.showwarning("Missing Fields", "Please fill in all fields.")
+
+
+        # OK Button
+        ok_button = tk.Button(dialog, text="OK", command=validate_and_close)
+        ok_button.grid(row=3, column=0, columnspan=2, pady=10)
+
+        dialog.transient()  # Make the dialog modal
+        dialog.grab_set()  # Prevent interaction with the main window
+        self.wait_window(dialog)  # Wait for the dialog to close
+    
 
     def start_record(self):
         if not self.sel_pat:
-            self._no_patient_selected_()
+            self._patient_selection_("not")
             return
         # send signal to labrecorder, start recording
 
     def stop_record(self):
+        if not self.sel_pat:
+            self._patient_selection_("not")
+            return 
         self.parts += 1
         # send signal to labrecorder, stop recording and save files
 
         self._continue_recording_()
 
     def continue_record(self):
-        pass
+        if not self.sel_pat:
+            self._patient_selection_("not")
+            return
+        
         # send signal to labrecorder, continue recording
+
+    def select_patient(self):
+        if self.sel_pat:
+            self._patient_selection_()
+            return
+        
+        self._type_data()
 
 if __name__ == "__main__":
     app = MainWindow()

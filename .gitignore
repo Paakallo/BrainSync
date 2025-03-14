@@ -1,2 +1,6 @@
 .idea/
 .vscode/
+test/
+**/__pycache__/**
+patients.json
+data/

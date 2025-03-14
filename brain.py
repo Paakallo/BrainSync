@@ -223,9 +223,9 @@ def add_patient(name, surname, age):
     with open("patients.json", "r") as file:
         pat_list = json.load(file)
     
+    
     if check_patient(name,surname,age,pat_list):
-        # temporarily
-        pass
+        return False
     else:
         # create patient data card in json
         path = os.path.join("data", f"{name}_{surname}_{age}")
@@ -245,6 +245,7 @@ def add_patient(name, surname, age):
 
         with open("patients.json", "w") as file:
             json.dump(pat_list, file)
+        return True
         
 
 # if __name__ == '__main__':
