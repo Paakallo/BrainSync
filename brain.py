@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 import datetime
 import os
 
+import json
+# from datetime import datetime
+
 # Variables related to packet handling
 current_byte = 'c'
 previous_byte = 'c'
@@ -210,15 +213,49 @@ def main(name,surname,age):
     read_serial_data(sys.argv[1],name,surname,age)
 
 
-if __name__ == '__main__':
-    name = input('Type Name:')
-    surname = input('Type Surname:')
-    age = input('Type Age:')
+def check_patient(name, surname, age, pat_list): 
+    for pat in pat_list:
+        if pat['Name'] == name and pat['Surname'] == surname and pat['Age'] == age:
+            return True
+    return False
 
-    if not os.path.exists(f'{name}{surname}{age}'):    
-    	os.mkdir(f'{name}{surname}{age}')
+def add_patient(name, surname, age):
+    with open("patients.json", "r") as file:
+        pat_list = json.load(file)
+    
+    if check_patient(name,surname,age,pat_list):
+        # temporarily
+        pass
     else:
-        print('This folder already exists')
+        # create patient data card in json
+        path = os.path.join("data", f"{name}_{surname}_{age}")
+        os.makedirs(path)
+        date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        person = {
+            "Name": name,
+            "Surname": surname,
+            "Age": age,
+            "created_ago": f"{date}",
+            "created_at" : path,
+            "part_1": [],
+            "part_2": [],
+            "part_3": []
+        }
+        pat_list.append(person)
 
-    while True:
-        main(name,surname,age)
+        with open("patients.json", "w") as file:
+            json.dump(pat_list, file)
+        
+
+# if __name__ == '__main__':
+#     name = input('Type Name:')
+#     surname = input('Type Surname:')
+#     age = input('Type Age:')
+
+#     if not os.path.exists(f'{name}{surname}{age}'):    
+#     	os.mkdir(f'{name}{surname}{age}')
+#     else:
+#         print('This folder already exists')
+
+#     while True:
+#         main(name,surname,age)

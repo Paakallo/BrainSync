@@ -9,7 +9,7 @@ class MainWindow(tk.Tk):
         self.label = tk.Label(self, text="")
         self.label.pack()
 
-        self.introduction_button = tk.Button(self, text="Introduction", command=self.show_introduction)
+        self.introduction_button = tk.Button(self, text="Start", command=self.show_introduction)
         self.introduction_button.pack()
 
 
