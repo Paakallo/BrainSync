@@ -182,6 +182,7 @@ def check_file(name,surname,age):
     while os.path.exists(f'{name}{surname}{age}/{datetime.date.today()}_{file_index}.csv'):
         file_index += 1
     return file_index
+
 def main(name,surname,age):
 
     if len(sys.argv) < 2:
@@ -218,6 +219,6 @@ if __name__ == '__main__':
     	os.mkdir(f'{name}{surname}{age}')
     else:
         print('This folder already exists')
-    
+
     while True:
-    	main(name,surname,age)
+        main(name,surname,age)
