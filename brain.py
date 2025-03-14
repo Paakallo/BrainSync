@@ -6,6 +6,8 @@ import datetime
 import os
 
 import json
+import sys
+import time
 # from datetime import datetime
 
 # Variables related to packet handling
@@ -247,6 +249,25 @@ def add_patient(name, surname, age):
             json.dump(pat_list, file)
         return True
         
+def connect2headset():
+    if sys.platform == 'linux':
+        serial_connection = serial.Serial(
+            # assume port is assigned to headset
+            port="/dev/rfcomm0",
+            baudrate=9600,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            bytesize=serial.SEVENBITS 
+        )     
+    else:
+        # assume COM port is assigned to headset
+        serial_connection = serial.Serial(
+            port=com_port,
+            baudrate=9600,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            bytesize=serial.SEVENBITS
+    )
 
 # if __name__ == '__main__':
 #     name = input('Type Name:')
