@@ -3,6 +3,8 @@ from tkinter import messagebox
 from tkinter import dialog
 from brain import Brain
 from utils import *
+import threading
+
 class MainWindow(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -115,9 +117,14 @@ class MainWindow(tk.Tk):
         # send signal to labrecorder, start recording
         if not self.running:
             self.exper = Brain(connect2headset())
-            self.exper.read_serial_data()
+
+            # Run `read_serial_data()` in a separate thread
+            self.thread = threading.Thread(target=self.exper.read_serial_data, daemon=True)
+            self.thread.start()
             self.running = True
+
             # send TCP signal to start
+
         else:
             pass
 
@@ -125,14 +132,16 @@ class MainWindow(tk.Tk):
         if not self.sel_pat:
             self._patient_selection_("not")
             return
-        self.running = False
-        self.parts += 1
-        # send signal to labrecorder, stop recording and store data
-        self.data = self.exper.stop_serial_data()
-        # send TCP signal to stop
+        if self.running:
+            self.exper.continue_running = False  # Stop the loop in `read_serial_data()`
+            self.thread.join(timeout=2)  # Wait for the thread to stop
+            self.data = self.exper.stop_serial_data()
+            self.running = False
 
-        # save data
-        
+            # send TCP signal to stop
+
+            # save data
+
 
     def continue_record(self):
         if not self.sel_pat:
