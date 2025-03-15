@@ -118,20 +118,21 @@ class MainWindow(tk.Tk):
             self.exper.read_serial_data()
             self.running = True
             # send TCP signal to start
-            
         else:
             pass
+
     def stop_record(self):
         if not self.sel_pat:
             self._patient_selection_("not")
-            return 
+            return
+        self.running = False
         self.parts += 1
         # send signal to labrecorder, stop recording and store data
         self.data = self.exper.stop_serial_data()
-        self.running = False
         # send TCP signal to stop
 
         # save data
+        
 
     def continue_record(self):
         if not self.sel_pat:

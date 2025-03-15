@@ -137,6 +137,7 @@ class Brain:
                 print("Waiting for connection")
 
     def stop_serial_data(self):
+        self.continue_running = False
         self.serial_connection.close()
         #TODO: reset object
         return self.data_records
