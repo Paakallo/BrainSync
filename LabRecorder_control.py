@@ -22,10 +22,28 @@ modality - will replace %m in template. suggested values: eeg, ieeg, meg, beh
 
 """""
 
+"""""
+
+file structure:
+-data
+--patient
+---session (in our case part)
+----run (in case one part is divided into many time segments)
+"""""
+
 import socket
 
 
 s = socket.create_connection(("localhost", 22345))
 s.sendall(b"select all\n")
-s.sendall(b"filename {root:C:\\Data\\} {template:exp%n\\%p_block_%b.xdf} {run:2} {participant:P003} {task:MemoryGuided}\n")
-# s.sendall(b"start\n")
+#TODO: filename template
+s.sendall(b"filename {root:C:\\Data\\} {template:exp%n\\%p_block_%b.xdf} {run:1} {participant:P003} {task:MemoryGuided} {modality:eeg}\n")
+s.sendall(b"start\n")
+
+#do something
+s.sendall(b"stop\n")
+
+# update runs or even sessions
+
+s.sendall(b"start\n")
+

@@ -12,7 +12,7 @@ import time
 
 
 ### STOP functions
-def save_data_to_csv(data, part:int):
+def save_data(data, part:int):
     """
     Save the collected EEG data to a CSV file and plot the data.
     """

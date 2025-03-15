@@ -4,6 +4,8 @@ from tkinter import dialog
 from brain import Brain
 from utils import *
 import threading
+import socket
+
 
 class MainWindow(tk.Tk):
     def __init__(self):
@@ -37,6 +39,9 @@ class MainWindow(tk.Tk):
 
         self.data = []
         self.running = False
+
+        self.s = socket.create_connection(("localhost", 22345))
+
 
         if not os.path.exists('data'):
             os.mkdir('data')
@@ -148,6 +153,8 @@ class MainWindow(tk.Tk):
             # send TCP signal to stop
 
             # save data
+            self.parts += 1
+            save_data(self.data, self.parts)
 
 
 
