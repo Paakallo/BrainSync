@@ -12,12 +12,11 @@ import time
 
 
 ### STOP functions
-def save_data_to_csv(data, name, surname, age):
+def save_data_to_csv(data, part:int):
     """
     Save the collected EEG data to a CSV file and plot the data.
     """
-    if not os.path.exists('data'):
-        os.mkdir('data')
+    
     df = pd.DataFrame(data, columns=[
         'timestamp', 'signal_strength', 'attention', 'meditation',
         'delta', 'theta', 'low_alpha', 'high_alpha', 'low_beta', 'high_beta', 
@@ -29,11 +28,11 @@ def save_data_to_csv(data, name, surname, age):
     # if not os.path.exists(f'{name}{surname}{age}'):    
     # 	os.mkdir(f'{name}{surname}{age}')
 
-    file_index = check_file(name,surname,age)
-    df.to_csv(f'{name}{surname}{age}/{datetime.date.today()}_{file_index}.csv', index=False)
-    plot_eeg_data(df, file_index,name,surname,age)
+    file_index = check_file(part)
+    df.to_csv(f'{part}_{file_index}.csv', index=False)
+    plot_eeg_data(df, part, file_index)
 
-def plot_eeg_data(df, file_index,name,surname,age):
+def plot_eeg_data(df, part, file_index):
     """
     Plot the EEG data and save the plot as a PNG file.
     """
@@ -54,12 +53,12 @@ def plot_eeg_data(df, file_index,name,surname,age):
         
     fig.tight_layout()
     ax.legend(loc='upper right')
-    plt.savefig(f'{name}{surname}{age}/{datetime.date.today()}_{file_index}.png')
+    plt.savefig(f'{part}_{file_index}.png')
     plt.show()
 
-def check_file(name,surname,age):
+def check_file(part):
     file_index = 1
-    while os.path.exists(f'{name}{surname}{age}/{datetime.date.today()}_{file_index}.csv'):
+    while os.path.exists(f'{part}_{file_index}.csv'):
         file_index += 1
     return file_index
 

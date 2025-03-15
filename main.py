@@ -38,6 +38,11 @@ class MainWindow(tk.Tk):
         self.data = []
         self.running = False
 
+        if not os.path.exists('data'):
+            os.mkdir('data')
+        if not os.path.exists('patients.json'):
+            os.mkdir('patients.json')
+
     def _patient_selection_(self, text=''):
         self.dialog = tk.Toplevel()
         self.dialog.title("Patient select")
@@ -114,8 +119,9 @@ class MainWindow(tk.Tk):
         if not self.sel_pat:
             self._patient_selection_("not")
             return
-        # send signal to labrecorder, start recording
+        
         if not self.running:
+            print("Connecting...")
             self.exper = Brain(connect2headset())
 
             # Run `read_serial_data()` in a separate thread
@@ -125,14 +131,15 @@ class MainWindow(tk.Tk):
 
             # send TCP signal to start
 
-        else:
-            pass
+        
 
     def stop_record(self):
         if not self.sel_pat:
             self._patient_selection_("not")
             return
+        
         if self.running:
+            print("Shutting down connection")
             self.exper.continue_running = False  # Stop the loop in `read_serial_data()`
             self.thread.join(timeout=2)  # Wait for the thread to stop
             self.data = self.exper.stop_serial_data()
@@ -141,6 +148,7 @@ class MainWindow(tk.Tk):
             # send TCP signal to stop
 
             # save data
+
 
 
     def continue_record(self):

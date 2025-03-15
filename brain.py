@@ -66,7 +66,7 @@ class Brain:
             print(f"{signal_strength},         {attention},         {meditation},{'         ,'.join(map(str, self.eeg_values))}")
             
             packet_data_list.append([
-                datetime.datetime.now(),
+                time.time(),
                 signal_strength,
                 attention,
                 meditation,
