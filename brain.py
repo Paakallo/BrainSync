@@ -104,35 +104,37 @@ class Brain:
         #     bytesize=serial.SEVENBITS
         # )
 
-        # serial_connection.isOpen()
-
+        self.serial_connection.isOpen()
+        print("self.serial_connection.isOpen()")
 
         while self.continue_running:
             if self.serial_connection.inWaiting() > 0:
-                current_byte = self.serial_connection.read(1)
+                self.current_byte = self.serial_connection.read(1)
 
-                if ord(previous_byte) == 170 and ord(current_byte) == 170 and not is_packet_in_progress:
-                    is_packet_in_progress = True
+                if ord(self.previous_byte) == 170 and ord(self.current_byte) == 170 and not self.is_packet_in_progress:
+                    self.is_packet_in_progress = True
                 elif len(self.packet_buffer) == 1:
-                    self.packet_buffer.append(current_byte)
-                    packet_length = ord(self.packet_buffer[0])
-                elif is_packet_in_progress:
-                    self.packet_buffer.append(current_byte)
+                    self.packet_buffer.append(self.current_byte)
+                    self.packet_length = ord(self.packet_buffer[0])
+                elif self.is_packet_in_progress:
+                    self.packet_buffer.append(self.current_byte)
 
                     # Validate packet length
                     if len(self.packet_buffer) > 169:
                         print("Error: Data error too long!")
                         self.packet_buffer.clear()
-                        is_packet_in_progress = False
+                        self.is_packet_in_progress = False
                         self.eeg_values.clear()
 
-                    elif len(self.packet_buffer) == packet_length + 2:
+                    elif len(self.packet_buffer) == self.packet_length + 2:
                         self.data_records = self.parse_packet(self.data_records)
                         self.packet_buffer.clear()
-                        is_packet_in_progress = False
+                        self.is_packet_in_progress = False
                         self.eeg_values.clear()
 
-                previous_byte = current_byte
+                self.previous_byte = self.current_byte
+            else:
+                print("Waiting for connection")
 
     def stop_serial_data(self):
         self.serial_connection.close()

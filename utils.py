@@ -111,7 +111,7 @@ def connect2headset():
     else:
         # assume COM port is assigned to headset
         serial_connection = serial.Serial(
-            port=com_port,
+            port="COM5",
             baudrate=9600,
             parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,
