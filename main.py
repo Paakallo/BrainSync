@@ -1,7 +1,8 @@
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import dialog
-import brain as b
+from brain import Brain
+from utils import *
 class MainWindow(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -30,6 +31,10 @@ class MainWindow(tk.Tk):
 
         self.parts = 0
         self.sel_pat = False
+        self.exper:Brain = None
+
+        self.data = []
+        self.running = False
 
     def _patient_selection_(self, text=''):
         self.dialog = tk.Toplevel()
@@ -41,21 +46,21 @@ class MainWindow(tk.Tk):
             self.dialog, text="Continue", command=lambda: self.dialog.destroy())
         self.continue_button.pack()
 
-    def _continue_recording_(self):
-        self.dialog = tk.Toplevel()
-        self.dialog.title("Continue")
-        self.label = tk.Label(self.dialog, text="Do you want to continue")
-        self.label.pack()
+    # def _continue_recording_(self):
+    #     self.dialog = tk.Toplevel()
+    #     self.dialog.title("Continue")
+    #     self.label = tk.Label(self.dialog, text="Do you want to continue")
+    #     self.label.pack()
 
-        self.yes_button = tk.Button(
-            self.dialog, text="Yes", command=lambda: [self.dialog.destroy(), self.continue_record])
-        self.yes_button.pack()
+    #     self.yes_button = tk.Button(
+    #         self.dialog, text="Yes", command=lambda: [self.dialog.destroy(), self.continue_record])
+    #     self.yes_button.pack()
 
-        self.no_button = tk.Button(
-            self.dialog, text="No", command=lambda: self.dialog.destroy())
-        self.no_button.pack()
+    #     self.no_button = tk.Button(
+    #         self.dialog, text="No", command=lambda: self.dialog.destroy())
+    #     self.no_button.pack()
 
-    def _type_data(self):
+    def _type_data_(self):
         dialog = tk.Toplevel()
         dialog.title("Enter Patient Information")
         dialog.geometry("300x200")
@@ -82,8 +87,9 @@ class MainWindow(tk.Tk):
                 try:
                     int(self.age)  # Ensure age is a number
                     
-                    if not b.add_patient(self.name, self.surname, self.age):
+                    if not add_patient(self.name, self.surname, self.age):
                         messagebox.showwarning("Existing record", "Patient already exists")
+                        #TODO: select exisiting patient
                     else:
                         self.sel_pat = True
                         dialog.destroy()
@@ -107,15 +113,25 @@ class MainWindow(tk.Tk):
             self._patient_selection_("not")
             return
         # send signal to labrecorder, start recording
-
+        if not self.running:
+            self.exper = Brain(connect2headset())
+            self.exper.read_serial_data()
+            self.running = True
+            # send TCP signal to start
+            
+        else:
+            pass
     def stop_record(self):
         if not self.sel_pat:
             self._patient_selection_("not")
             return 
         self.parts += 1
-        # send signal to labrecorder, stop recording and save files
+        # send signal to labrecorder, stop recording and store data
+        self.data = self.exper.stop_serial_data()
+        self.running = False
+        # send TCP signal to stop
 
-        self._continue_recording_()
+        # save data
 
     def continue_record(self):
         if not self.sel_pat:
@@ -123,13 +139,14 @@ class MainWindow(tk.Tk):
             return
         
         # send signal to labrecorder, continue recording
+        # self._continue_recording_()
 
     def select_patient(self):
         if self.sel_pat:
             self._patient_selection_()
             return
         
-        self._type_data()
+        self._type_data_()
 
 if __name__ == "__main__":
     app = MainWindow()
