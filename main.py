@@ -13,9 +13,6 @@ class MainWindow(tk.Tk):
         self.title("BrainSync")
         self.geometry("400x200")
 
-        self.label = tk.Label(self, text="")
-        self.label.pack()
-
         self.start_button = tk.Button(self, text="Start", command=self.start_record)
         self.start_button.pack()
 
@@ -27,6 +24,9 @@ class MainWindow(tk.Tk):
 
         self.select_button = tk.Button(self, text="Select patient", command=self.select_patient)
         self.select_button.pack()
+
+        self.reset_button = tk.Button(self, text="Reset patient", command=self.res_pat)
+        self.reset_button.pack()
 
         # patient data
         self.name = None
@@ -40,36 +40,26 @@ class MainWindow(tk.Tk):
         self.data = []
         self.running = False
 
+        self.label = tk.Label(self, text=f"{self.parts}")
+        self.label.pack()
+
         #self.s = socket.create_connection(("localhost", 22345))
 
         if not os.path.exists('data'):
             os.mkdir('data')
-        # if not os.path.exists('patients.json'):
-        #     os.mkdir('patients.json')
+
+    def update_parts_label(self):
+        self.label.config(text=f"Part: {self.parts}")   
 
     def _patient_selection_(self, text=''):
         self.dialog = tk.Toplevel()
         self.dialog.title("Patient select")
-        self.label = tk.Label(self.dialog, text=f"Patient {text} selected")
-        self.label.pack()
+        label = tk.Label(self.dialog, text=f"Patient {text} selected")
+        label.pack()
 
         self.continue_button = tk.Button(
             self.dialog, text="Continue", command=lambda: self.dialog.destroy())
         self.continue_button.pack()
-
-    # def _continue_recording_(self):
-    #     self.dialog = tk.Toplevel()
-    #     self.dialog.title("Continue")
-    #     self.label = tk.Label(self.dialog, text="Do you want to continue")
-    #     self.label.pack()
-
-    #     self.yes_button = tk.Button(
-    #         self.dialog, text="Yes", command=lambda: [self.dialog.destroy(), self.continue_record])
-    #     self.yes_button.pack()
-
-    #     self.no_button = tk.Button(
-    #         self.dialog, text="No", command=lambda: self.dialog.destroy())
-    #     self.no_button.pack()
 
     def _type_data_(self):
         dialog = tk.Toplevel()
@@ -135,6 +125,8 @@ class MainWindow(tk.Tk):
                     messagebox.showwarning("Wrong value!")
                 else:
                     update_patient(self.name,self.surname,self.age,self.parts)
+                    self.update_parts_label()
+                    self.sel_pat = True
                     sel_dialog.destroy()
             except:
                 messagebox.showwarning("Wrong value!")
@@ -142,6 +134,8 @@ class MainWindow(tk.Tk):
         def res_pat():
             reset_patient(self.name,self.surname,self.age)
             self.parts = 0
+            self.update_parts_label()
+            self.sel_pat = True
             sel_dialog.destroy()
 
         ok_button = tk.Button(sel_dialog, text="Confirm", command=confirm)
@@ -150,14 +144,21 @@ class MainWindow(tk.Tk):
         reset_button = tk.Button(sel_dialog, text="Reset patient", command=res_pat)
         reset_button.grid(row=3, column=1, columnspan=2, pady=10)
 
+        exit_button = tk.Button(sel_dialog, text="Exit", command=sel_dialog.destroy)
+        exit_button.grid(row=3, column=2, columnspan=2, pady=10)
+
         sel_dialog.transient()  # Make the dialog modal
         sel_dialog.grab_set()  # Prevent interaction with the main window
         self.wait_window(sel_dialog)  # Wait for the dialog to close
 
-    def reset_pat_button(self):
-
+    def res_pat(self):
+        if not self.sel_pat:
+            self._patient_selection_("not")
+            return
+        reset_patient(self.name,self.surname,self.age)
         self.parts = 0
-
+        self.update_parts_label()
+    
     def start_record(self):
         if not self.sel_pat:
             self._patient_selection_("not")
@@ -192,6 +193,7 @@ class MainWindow(tk.Tk):
 
             # save data
             self.parts += 1
+            self.update_parts_label()
             save_data(self.data, self.parts)
 
 
