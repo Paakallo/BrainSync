@@ -40,13 +40,12 @@ class MainWindow(tk.Tk):
         self.data = []
         self.running = False
 
-        self.s = socket.create_connection(("localhost", 22345))
-
+        #self.s = socket.create_connection(("localhost", 22345))
 
         if not os.path.exists('data'):
             os.mkdir('data')
-        if not os.path.exists('patients.json'):
-            os.mkdir('patients.json')
+        # if not os.path.exists('patients.json'):
+        #     os.mkdir('patients.json')
 
     def _patient_selection_(self, text=''):
         self.dialog = tk.Toplevel()
@@ -100,8 +99,9 @@ class MainWindow(tk.Tk):
                     int(self.age)  # Ensure age is a number
                     
                     if not add_patient(self.name, self.surname, self.age):
-                        messagebox.showwarning("Existing record", "Patient already exists")
-                        #TODO: select exisiting patient
+                        # messagebox.showwarning("Existing record", "Patient already exists")
+                        self.sel_existing()
+                        dialog.destroy()
                     else:
                         self.sel_pat = True
                         dialog.destroy()
@@ -119,6 +119,44 @@ class MainWindow(tk.Tk):
         dialog.grab_set()  # Prevent interaction with the main window
         self.wait_window(dialog)  # Wait for the dialog to close
     
+    def sel_existing(self):
+        sel_dialog = tk.Toplevel()
+        sel_dialog.title("Enter experiment part")
+        sel_dialog.geometry("300x200")
+
+        tk.Label(sel_dialog, text="Part:").grid(row=2, column=0, padx=10, pady=5)
+        entry_part = tk.Entry(sel_dialog)
+        entry_part.grid(row=0, column=0, columnspan=2, pady=10)
+
+        def confirm():
+            try:
+                self.parts = int(entry_part.get().strip())
+                if self.parts > 3 or self.parts < 0:
+                    messagebox.showwarning("Wrong value!")
+                else:
+                    update_patient(self.name,self.surname,self.age,self.parts)
+                    sel_dialog.destroy()
+            except:
+                messagebox.showwarning("Wrong value!")
+
+        def res_pat():
+            reset_patient(self.name,self.surname,self.age)
+            self.parts = 0
+            sel_dialog.destroy()
+
+        ok_button = tk.Button(sel_dialog, text="Confirm", command=confirm)
+        ok_button.grid(row=3, column=0, columnspan=2, pady=10)
+
+        reset_button = tk.Button(sel_dialog, text="Reset patient", command=res_pat)
+        reset_button.grid(row=3, column=1, columnspan=2, pady=10)
+
+        sel_dialog.transient()  # Make the dialog modal
+        sel_dialog.grab_set()  # Prevent interaction with the main window
+        self.wait_window(sel_dialog)  # Wait for the dialog to close
+
+    def reset_pat_button(self):
+
+        self.parts = 0
 
     def start_record(self):
         if not self.sel_pat:

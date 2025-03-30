@@ -70,9 +70,12 @@ def check_patient(name, surname, age, pat_list):
     return False
 
 def add_patient(name, surname, age):
+    if not os.path.exists("patients.json"):
+        with open("patients.json", "w") as file:
+            json.dump([],file)
+
     with open("patients.json", "r") as file:
         pat_list = json.load(file)
-    
     
     if check_patient(name,surname,age,pat_list):
         return False
@@ -87,6 +90,7 @@ def add_patient(name, surname, age):
             "Age": age,
             "created_ago": f"{date}",
             "created_at" : path,
+            "part_no": 0,
             "part_1": [],
             "part_2": [],
             "part_3": []
@@ -96,7 +100,43 @@ def add_patient(name, surname, age):
         with open("patients.json", "w") as file:
             json.dump(pat_list, file)
         return True
-        
+
+def load_patient(name,surname,age):
+    with open("patients.json", "r") as file:
+        pat_list = json.load(file)
+    if check_patient(name,surname,age,pat_list):
+        return []
+    
+    for pat in pat_list:
+        if pat['Name'] == name and pat['Surname'] == surname and pat['Age'] == age:
+            return pat
+    return []
+
+def update_patient(name,surname,age,part_no):
+    with open("patients.json", "r") as file:
+        pat_list = json.load(file)
+
+    for pat in pat_list:
+        if pat['Name'] == name and pat['Surname'] == surname and pat['Age'] == age:
+            pat['part_no'] = part_no
+            break
+    with open("patients.json", "w") as file:
+            json.dump(pat_list, file)
+
+def reset_patient(name,surname,age):
+    with open("patients.json", "r") as file:
+        pat_list = json.load(file)
+
+    for pat in pat_list:
+        if pat['Name'] == name and pat['Surname'] == surname and pat['Age'] == age:
+            pat['part_no'] = 0
+            pat['part_1'] = []
+            pat['part_2'] = []
+            pat['part_3'] = []
+            break
+    with open("patients.json", "w") as file:
+            json.dump(pat_list, file)
+
 def connect2headset():
     if sys.platform == 'linux':
         serial_connection = serial.Serial(
