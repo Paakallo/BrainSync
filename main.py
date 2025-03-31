@@ -40,6 +40,8 @@ class MainWindow(tk.Tk):
         self.data = []
         self.running = False
 
+        self.start_clicked = False # start button
+
         self.label = tk.Label(self, text=f"{self.parts}")
         self.label.pack()
 
@@ -48,10 +50,10 @@ class MainWindow(tk.Tk):
         self.lab_recorder = socket.create_connection(("localhost", 22345))
         self.lab_recorder.sendall(b"select all\n")
 
-    def set_lab_dir(self):
+    def set_lab_dir(self, run = 1):
         participant = f"{self.name}_{self.surname}_{self.age}"
         session = self.parts + 1 # current part maybe 0, but when data is saved, current part is 1
-        run = 1 #TODO: 2 minute runs
+        # run = 1 #TODO: 2 minute runs
         param_str = f"{{run:{run}}} {{participant:{participant}}} {{session:{session}}} {{task:Default}} {{modality:eeg}}\n"
         send_msg = b"filename {template:%p/%s/LabRecorder/%r.xdf} " + param_str.encode()
         self.lab_recorder.sendall(send_msg)
@@ -170,43 +172,70 @@ class MainWindow(tk.Tk):
         self.update_parts_label()
     
     def start_record(self):
+        """
+        Start a series of 2 minute recordings
+        """
         if not self.sel_pat:
             self._patient_selection_("not")
             return
         
-        if not self.running:
-            print("Connecting...")
-            self.exper = Brain(connect2headset())
-
-            # Run `read_serial_data()` in a separate thread
-            self.thread = threading.Thread(target=self.exper.read_serial_data, daemon=True)
-            self.thread.start()
-            self.running = True
-
-            # send TCP signal to start
-            self.lab_recorder.sendall(b"start\n")
+        start_time = 0
+        run = 0
+        self.start_clicked = True
+        while self.start_clicked:
+            if not self.running:
+                print("Connecting...")
+                self.exper = Brain(connect2headset())
+                # Run `read_serial_data()` in a separate thread
+                self.thread = threading.Thread(target=self.exper.read_serial_data, daemon=True)
+                self.thread.start()
+                self.running = True
+                # send TCP signal to start
+                self.lab_recorder.sendall(b"start\n")
+                # start time measurement
+                start_time = time.time()
+            else:
+                if time.time() - start_time >= 2*60:
+                    # stop the loop
+                    self.lab_recorder.sendall(b"stop\n")
+                    self.exper.continue_running = False  # Stop the loop in `read_serial_data()`
+                    self.data = self.exper.get_data()
+                    filename = f"{self.name}_{self.surname}_{self.age}"
+                    save_data(self.data, self.parts, filename)
+                    #run again
+                    run += 1
+                    self.set_lab_dir(run)
+                    self.lab_recorder.sendall(b"start\n")
+                    self.exper.continue_running = True
+                    start_time = time.time()
+                    
 
     def stop_record(self):
+        """
+        Stop a series of 2 minute recordings.
+        Each series is a single part
+        """
         if not self.sel_pat:
             self._patient_selection_("not")
             return
         
-        if self.running:
+        if self.running and self.start_clicked:
             print("Shutting down connection")
             self.exper.continue_running = False  # Stop the loop in `read_serial_data()`
-            self.thread.join(timeout=2)  # Wait for the thread to stop
             self.data = self.exper.stop_serial_data()
+            self.thread.join(timeout=2)  # Wait for the thread to stop
             self.running = False
+            self.start_clicked = False
 
             # send TCP signal to stop
             self.lab_recorder.sendall(b"stop\n")
 
             # save data
             self.parts += 1
-            print(self.parts)
+            run = 1
             self.update_parts_label()
             save_data(self.data, self.parts)
-            self.set_lab_dir() # setup for next part
+            self.set_lab_dir(run) # setup for next part
 
     def continue_record(self):
         if not self.sel_pat:

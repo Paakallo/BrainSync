@@ -142,6 +142,9 @@ class Brain:
                 print(f"OSError occurred: {e}")
                 break
 
+    def get_data(self):
+        return self.data_records
+
     def stop_serial_data(self):
         self.continue_running = False
         self.serial_connection.close()

@@ -12,7 +12,7 @@ import time
 
 
 ### STOP functions
-def save_data(data, part:int):
+def save_data(data, part:int, filename):
     """
     Save the collected EEG data to a CSV file and plot the data.
     """
@@ -28,9 +28,9 @@ def save_data(data, part:int):
     # if not os.path.exists(f'{name}{surname}{age}'):    
     # 	os.mkdir(f'{name}{surname}{age}')
 
-    file_index = check_file(part)
-    df.to_csv(f'{part}_{file_index}.csv', index=False)
-    plot_eeg_data(df, part, file_index)
+    file_index = check_file(part, filename)
+    df.to_csv(f'{filename}/{part}/mindflex/{part}_{file_index}.csv', index=False)
+    # plot_eeg_data(df, part, file_index)
 
 def plot_eeg_data(df, part, file_index):
     """
@@ -56,9 +56,9 @@ def plot_eeg_data(df, part, file_index):
     plt.savefig(f'{part}_{file_index}.png')
     plt.show()
 
-def check_file(part):
+def check_file(part, filename):
     file_index = 1
-    while os.path.exists(f'{part}_{file_index}.csv'):
+    while os.path.exists(f'{filename}/{part}/mindflex/{part}_{file_index}.csv'):
         file_index += 1
     return file_index
 
