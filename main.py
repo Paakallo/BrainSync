@@ -43,10 +43,18 @@ class MainWindow(tk.Tk):
         self.label = tk.Label(self, text=f"{self.parts}")
         self.label.pack()
 
-        #self.s = socket.create_connection(("localhost", 22345))
-
         if not os.path.exists('data'):
             os.mkdir('data')
+        self.lab_recorder = socket.create_connection(("localhost", 22345))
+        self.lab_recorder.sendall(b"select all\n")
+
+    def set_lab_dir(self):
+        participant = f"{self.name}_{self.surname}_{self.age}"
+        session = self.parts + 1 # current part maybe 0, but when data is saved, current part is 1
+        run = 1 #TODO: 2 minute runs
+        param_str = f"{{run:{run}}} {{participant:{participant}}} {{session:{session}}} {{task:Default}} {{modality:eeg}}\n"
+        send_msg = b"filename {template:%p/%s/LabRecorder/%r.xdf} " + param_str.encode()
+        self.lab_recorder.sendall(send_msg)
 
     def update_parts_label(self):
         self.label.config(text=f"Part: {self.parts}")   
@@ -91,9 +99,11 @@ class MainWindow(tk.Tk):
                     if not add_patient(self.name, self.surname, self.age):
                         # messagebox.showwarning("Existing record", "Patient already exists")
                         self.sel_existing()
+                        self.set_lab_dir()
                         dialog.destroy()
                     else:
                         self.sel_pat = True
+                        self.set_lab_dir()
                         dialog.destroy()
                 except ValueError:
                     messagebox.showwarning("Invalid Input", "Age must be a number.")
@@ -174,8 +184,7 @@ class MainWindow(tk.Tk):
             self.running = True
 
             # send TCP signal to start
-
-        
+            self.lab_recorder.sendall(b"start\n")
 
     def stop_record(self):
         if not self.sel_pat:
@@ -190,28 +199,36 @@ class MainWindow(tk.Tk):
             self.running = False
 
             # send TCP signal to stop
+            self.lab_recorder.sendall(b"stop\n")
 
             # save data
             self.parts += 1
+            print(self.parts)
             self.update_parts_label()
             save_data(self.data, self.parts)
-
-
+            self.set_lab_dir() # setup for next part
 
     def continue_record(self):
         if not self.sel_pat:
             self._patient_selection_("not")
             return
-        
+        # debug button
+        self.parts+=1
+        self.update_parts_label()
         # send signal to labrecorder, continue recording
         # self._continue_recording_()
 
     def select_patient(self):
-        if self.sel_pat:
+        if self.sel_pat and self.parts <=2:
             self._patient_selection_()
             return
-        
-        self._type_data_()
+        elif not self.sel_pat or self.parts == 3:
+            self.parts = 0
+            self.name = None
+            self.surname = None
+            self.age = None
+            self.update_parts_label()
+            self._type_data_()
 
 if __name__ == "__main__":
     app = MainWindow()

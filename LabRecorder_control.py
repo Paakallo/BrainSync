@@ -37,13 +37,24 @@ import socket
 s = socket.create_connection(("localhost", 22345))
 s.sendall(b"select all\n")
 #TODO: filename template
-s.sendall(b"filename {root:C:\\Data\\} {template:exp%n\\%p_block_%b.xdf} {run:1} {participant:P003} {task:MemoryGuided} {modality:eeg}\n")
-s.sendall(b"start\n")
+#s.sendall(b"filename {root:C:\\Data\\} {template:exp%n\\%p_block_%b.xdf} {run:1} {participant:P003} {task:MemoryGuided} {modality:eeg}\n")
+# s.sendall(b"start\n")
+
+#s.sendall(b"filename {template:%p/%s/%r.xdf} {run:1} {participant:w_w_15} {session:1} {task:Default} {modality:eeg}\n")
+
+participant = "w_w_15"
+session = 1
+run = 1 
+param_str = f"{{run:{run}}} {{participant:{participant}}} {{session:{session}}} {{task:Default}} {{modality:eeg}}\n"
+
+print(param_str)
+send_msg = b"filename {template:%p/%s/LabRecorder/%r.xdf} " + param_str.encode()
+s.sendall(send_msg)
 
 #do something
-s.sendall(b"stop\n")
+# s.sendall(b"stop\n")
 
 # update runs or even sessions
 
-s.sendall(b"start\n")
+# s.sendall(b"start\n")
 
