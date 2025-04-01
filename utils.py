@@ -133,9 +133,25 @@ def reset_patient(name,surname,age):
             pat['part_1'] = []
             pat['part_2'] = []
             pat['part_3'] = []
+            path = os.path.join("data", f"{name}_{surname}_{age}")
+            os.remove(path)
             break
     with open("patients.json", "w") as file:
             json.dump(pat_list, file)
+
+def remove_patient(name,surname,age):
+    with open("patients.json", "r") as file:
+        pat_list = json.load(file)
+
+    for pat in pat_list:
+        if pat['Name'] == name and pat['Surname'] == surname and pat['Age'] == age:
+            pat_list.remove(pat)
+            path = os.path.join("data", f"{name}_{surname}_{age}")
+            os.remove(path)
+            break
+    with open("patients.json", "w") as file:
+            json.dump(pat_list, file)
+
 
 def connect2headset():
     if sys.platform == 'linux':
