@@ -28,16 +28,19 @@ class MainWindow(tk.Tk):
         self.reset_button = tk.Button(self, text="Reset patient", command=self.res_pat)
         self.reset_button.pack()
 
-        self.rem_part_button = tk.Button(self, text="Remove part")
+        self.rem_part_button = tk.Button(self, text="Remove part", command=self.rem_part)
         self.rem_part_button.pack()
 
-        self.remove_button = tk.Button(self, text="Remove patient")
+        self.remove_button = tk.Button(self, text="Remove patient", command=self.rem_pat)
         self.remove_button.pack()
+
+        self.unset_button = tk.Button(self, text="Unset patient", command=self.unset_pat)
+        self.unset_button.pack()
 
         # Single-selection Listbox for choosing a part
         self.parts_listbox = tk.Listbox(self, selectmode=tk.SINGLE, height=3, exportselection=False)
         for i in range(1,4):
-            self.parts_listbox.insert(tk.END, f"Part {i}")
+            self.parts_listbox.insert(tk.END, i)
         self.parts_listbox.pack()
         # Button to assign selected part to self.parts
         self.confirm_parts_button = tk.Button(self, text="Set Selected Part", command=self.set_selected_part)
@@ -57,6 +60,9 @@ class MainWindow(tk.Tk):
 
         self.start_clicked = False # start button
 
+        # displayed patient info
+        self.info_label = tk.Label(self, text=f"{self.name}_{self.surname}_{self.age}")
+        self.info_label.pack()
         self.label = tk.Label(self, text=f"{self.parts}")
         self.label.pack()
 
@@ -68,7 +74,7 @@ class MainWindow(tk.Tk):
     def set_selected_part(self):
         selected = self.parts_listbox.curselection()
         if selected:
-            self.parts = selected[0]
+            self.parts = selected[0] + 1 # temporary fix 
             self.update_parts_label()
             messagebox.showinfo("Part Set", f"Selected Part: {self.parts}")
         else:
@@ -83,6 +89,7 @@ class MainWindow(tk.Tk):
 
     def update_parts_label(self):
         self.label.config(text=f"Part: {self.parts}")   
+        self.info_label.config(text=f"{self.name}_{self.surname}_{self.age}")        
 
     def _patient_selection_(self, text=''):
         self.dialog = tk.Toplevel()
@@ -123,10 +130,11 @@ class MainWindow(tk.Tk):
                     
                     if not add_patient(self.name, self.surname, self.age):
                         # messagebox.showwarning("Existing record", "Patient already exists")
-                        self.sel_existing()
+                        self._sel_existing_()
                         dialog.destroy()
                     else:
                         self.sel_pat = True
+                        self.update_parts_label()
                         self.set_lab_dir()
                         dialog.destroy()
                 except ValueError:
@@ -143,40 +151,10 @@ class MainWindow(tk.Tk):
         dialog.grab_set()  # Prevent interaction with the main window
         self.wait_window(dialog)  # Wait for the dialog to close
     
-    def sel_existing(self):
+    def _sel_existing_(self):
         sel_dialog = tk.Toplevel()
         sel_dialog.title("Patient already exists")
         sel_dialog.geometry("300x200")
-
-        # tk.Label(sel_dialog, text="Part:").grid(row=2, column=0, padx=10, pady=5)
-        # entry_part = tk.Entry(sel_dialog)
-        # entry_part.grid(row=0, column=0, columnspan=2, pady=10)
-
-        # def confirm():
-        #     try:
-        #         self.parts = int(entry_part.get().strip())
-        #         if self.parts > 3 or self.parts < 0:
-        #             messagebox.showwarning("Wrong value!")
-        #         else:
-        #             update_patient(self.name,self.surname,self.age,self.parts)
-        #             self.update_parts_label()
-        #             self.sel_pat = True
-        #             sel_dialog.destroy()
-        #     except:
-        #         messagebox.showwarning("Wrong value!")
-
-        # def res_pat():
-        #     reset_patient(self.name,self.surname,self.age)
-        #     self.parts = 0
-        #     self.update_parts_label()
-        #     self.sel_pat = True
-        #     sel_dialog.destroy()
-
-        # ok_button = tk.Button(sel_dialog, text="Confirm", command=confirm)
-        # ok_button.grid(row=3, column=0, columnspan=2, pady=10)
-
-        # reset_button = tk.Button(sel_dialog, text="Reset patient", command=res_pat)
-        # reset_button.grid(row=3, column=1, columnspan=2, pady=10)
 
         def exit():
             self.name = None
@@ -207,6 +185,40 @@ class MainWindow(tk.Tk):
         self.parts = 0
         self.update_parts_label()
     
+    def rem_part(self):
+        if not self.sel_pat:
+            self._patient_selection_("not")
+            return
+        remove_part(self.name,self.surname,self.age, self.parts)
+        if self.parts > 0:
+            self.parts -= 1
+        else:
+            self.parts += 1
+        self.update_parts_label()
+
+    def rem_pat(self):
+        if not self.sel_pat:
+            self._patient_selection_("not")
+            return
+        remove_patient(self.name,self.surname,self.age)
+        
+        self.name = None
+        self.surname = None
+        self.age = None
+        self.parts = 0
+        self.update_parts_label()
+
+    def unset_pat(self):
+        if not self.sel_pat:
+            self._patient_selection_("not")
+            return
+        self.name = None
+        self.surname = None
+        self.age = None
+        self.parts = 0
+        self.update_parts_label()
+        self.sel_pat = False
+
     def start_record(self):
         """
         Start a series of 2 minute recordings
@@ -266,10 +278,11 @@ class MainWindow(tk.Tk):
             self.lab_recorder.sendall(b"stop\n")
 
             # save data
+            #self.parts += 1
+            save_data(self.data, self.parts)
             self.parts += 1
             run = 1
             self.update_parts_label()
-            save_data(self.data, self.parts)
             self.set_lab_dir(run) # setup for next part
 
     def continue_record(self):
@@ -283,10 +296,10 @@ class MainWindow(tk.Tk):
         # self._continue_recording_()
 
     def select_patient(self):
-        if self.sel_pat and self.parts <=2:
+        if self.sel_pat:
             self._patient_selection_()
             return
-        elif not self.sel_pat or self.parts == 3:
+        elif not self.sel_pat:
             self.parts = 0
             self.name = None
             self.surname = None
