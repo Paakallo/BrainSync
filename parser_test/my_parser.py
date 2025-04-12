@@ -69,6 +69,10 @@ try:
             payload = [ord(ser.read()) for _ in range(length)] # read SPAYLOAD bytes
             checksum = ord(ser.read()) # read PCKSUM bye
 
+            if length > 169:
+                print("The package is too long")
+                continue
+
             if checksum_is_valid(payload, checksum):
                 i = 0
                 while i < len(payload):
