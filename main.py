@@ -39,7 +39,7 @@ class MainWindow(tk.Tk):
 
         # Single-selection Listbox for choosing a part
         self.parts_listbox = tk.Listbox(self, selectmode=tk.SINGLE, height=3, exportselection=False)
-        for i in range(1,4):
+        for i in range(1,8):
             self.parts_listbox.insert(tk.END, i)
         self.parts_listbox.pack()
         # Button to assign selected part to self.parts
@@ -52,7 +52,7 @@ class MainWindow(tk.Tk):
         self.age = None
 
         self.parts = 0
-        self.run_no = None
+        self.run_no = 0
         self.sel_pat = False
         self.exper:Brain = None
 
@@ -64,7 +64,7 @@ class MainWindow(tk.Tk):
         # displayed patient info
         self.info_label = tk.Label(self, text=f"{self.name}_{self.surname}_{self.age}")
         self.info_label.pack()
-        self.label = tk.Label(self, text=f"{self.parts}")
+        self.label = tk.Label(self, text=f"Current Part:{self.parts} \nCurrent run:{self.run_no}")
         self.label.pack()
 
         if not os.path.exists('data'):
@@ -76,6 +76,7 @@ class MainWindow(tk.Tk):
         selected = self.parts_listbox.curselection()
         if selected:
             self.parts = selected[0] + 1 # temporary fix 
+            self.set_lab_dir()
             self.update_parts_label()
             messagebox.showinfo("Part Set", f"Selected Part: {self.parts}")
         else:
@@ -90,7 +91,7 @@ class MainWindow(tk.Tk):
         self.lab_recorder.sendall(send_msg)
 
     def update_parts_label(self):
-        self.label.config(text=f"Part: {self.parts}")   
+        self.label.config(text=f"Current Part: {self.parts} \nCurrent Run:{self.run_no}")   
         self.info_label.config(text=f"{self.name}_{self.surname}_{self.age}")        
 
     def _patient_selection_(self, text=''):
@@ -197,6 +198,8 @@ class MainWindow(tk.Tk):
             if self.run_no:
                 try:
                     self.run_no = int(self.run_no)  # Ensure age is a number
+                    self.set_lab_dir(self.run_no)
+                    self.update_parts_label()
                     sel_dialog.destroy()
                 except ValueError:
                     messagebox.showwarning("Invalid Input", "Run number must be a number.")
@@ -297,8 +300,8 @@ class MainWindow(tk.Tk):
             save_data(self.data, self.parts)
             #self.parts += 1
             #run = 1
-            self.update_parts_label()
-            self.set_lab_dir(self.run_no) # setup for next part
+            # self.update_parts_label()
+            # self.set_lab_dir(self.run_no) # setup for next part
 
     def continue_record(self):
         if not self.sel_pat:
