@@ -292,18 +292,19 @@ class MainWindow(tk.Tk):
             return
         
         self.start_clicked = True
-        while self.start_clicked:
+#        while self.start_clicked:
 
+        # self._type_run_()
+        if not self.running:
             self._type_run_()
-            if not self.running:
-                print("Connecting...")
-                self.exper = Brain(connect2headset(f"COM{self.COM_port}"))
-                # Run `read_serial_data()` in a separate thread
-                self.thread = threading.Thread(target=self.exper.read_serial_data, daemon=True)
-                self.thread.start()
-                self.running = True
-                # send TCP signal to start
-                self.lab_recorder.sendall(b"start\n")
+            print("Connecting...")
+            self.exper = Brain(connect2headset(f"COM{self.COM_port}"))
+            # Run `read_serial_data()` in a separate thread
+            self.thread = threading.Thread(target=self.exper.read_serial_data, daemon=True)
+            self.thread.start()
+            self.running = True
+            # send TCP signal to start
+            self.lab_recorder.sendall(b"start\n")
                    
     def stop_record(self):
         """
