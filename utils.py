@@ -168,11 +168,11 @@ def remove_part(name,surname,age, part):
             json.dump(pat_list, file)
 
 
-def connect2headset():
+def connect2headset(port="COM5"):
     if sys.platform == 'linux':
         serial_connection = serial.Serial(
             # assume port is assigned to headset
-            port="/dev/rfcomm0",
+            port=port,
             baudrate=9600,
             parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,
@@ -181,7 +181,7 @@ def connect2headset():
     else:
         # assume COM port is assigned to headset
         serial_connection = serial.Serial(
-            port="COM5",
+            port=port,
             baudrate=9600,
             parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,

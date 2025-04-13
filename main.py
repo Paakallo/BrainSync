@@ -46,6 +46,17 @@ class MainWindow(tk.Tk):
         self.confirm_parts_button = tk.Button(self, text="Set Selected Part", command=self.set_selected_part)
         self.confirm_parts_button.pack()
 
+        # Single-selection Listbox for choosing a part
+        self.port_listbox = tk.Listbox(self, selectmode=tk.SINGLE, height=3, exportselection=False)
+        self.port_listbox.insert(0, 5)
+        self.port_listbox.insert(1, 6)
+        self.port_listbox.pack()
+        # Button to assign selected part to self.parts
+        self.confirm_port_button = tk.Button(self, text="Set COM Port", command=self.set_port)
+        self.confirm_port_button.pack()
+
+
+
         # patient data
         self.name = None
         self.surname = None
@@ -60,6 +71,7 @@ class MainWindow(tk.Tk):
         self.running = False
 
         self.start_clicked = False # start button
+        self.COM_port = None
 
         # displayed patient info
         self.info_label = tk.Label(self, text=f"{self.name}_{self.surname}_{self.age}")
@@ -67,10 +79,24 @@ class MainWindow(tk.Tk):
         self.label = tk.Label(self, text=f"Current Part:{self.parts} \nCurrent run:{self.run_no}")
         self.label.pack()
 
+        # display COM port
+        self.port_info = tk.Label(self, text=f"COM{self.COM_port}")
+        self.port_info.pack()
+
         if not os.path.exists('data'):
             os.mkdir('data')
         self.lab_recorder = socket.create_connection(("localhost", 22345))
         self.lab_recorder.sendall(b"select all\n")
+
+    def set_port(self):
+        selected = self.port_listbox.curselection()
+        if selected:
+            self.COM_port = selected[0] + 5 # temporary fix 
+            # self.set_lab_dir()
+            self.update_COM_label()
+            # messagebox.showinfo("Part Set", f"Selected Part: {self.parts}")
+        else:
+            messagebox.showwarning("No Selection", "Please select a COM port.")
 
     def set_selected_part(self):
         selected = self.parts_listbox.curselection()
@@ -93,6 +119,9 @@ class MainWindow(tk.Tk):
     def update_parts_label(self):
         self.label.config(text=f"Current Part: {self.parts} \nCurrent Run:{self.run_no}")   
         self.info_label.config(text=f"{self.name}_{self.surname}_{self.age}")        
+
+    def update_COM_label(self):
+        self.port_info.config(text=f"COM{self.COM_port}")
 
     def _patient_selection_(self, text=''):
         self.dialog = tk.Toplevel()
@@ -268,7 +297,7 @@ class MainWindow(tk.Tk):
             self._type_run_()
             if not self.running:
                 print("Connecting...")
-                self.exper = Brain(connect2headset())
+                self.exper = Brain(connect2headset(f"COM{self.COM_port}"))
                 # Run `read_serial_data()` in a separate thread
                 self.thread = threading.Thread(target=self.exper.read_serial_data, daemon=True)
                 self.thread.start()
