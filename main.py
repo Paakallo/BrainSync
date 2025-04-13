@@ -52,6 +52,7 @@ class MainWindow(tk.Tk):
         self.age = None
 
         self.parts = 0
+        self.run_no = None
         self.sel_pat = False
         self.exper:Brain = None
 
@@ -80,9 +81,10 @@ class MainWindow(tk.Tk):
         else:
             messagebox.showwarning("No Selection", "Please select a part.")
 
-    def set_lab_dir(self, run = 1):
+    def set_lab_dir(self,run = 1):
         participant = f"{self.name}_{self.surname}_{self.age}"
-        session = self.parts + 1 # current part maybe 0, but when data is saved, current part is 1
+        # session = self.parts + 1 # current part maybe 0, but when data is saved, current part is 1
+        session = self.parts
         param_str = f"{{run:{run}}} {{participant:{participant}}} {{session:{session}}} {{task:Default}} {{modality:eeg}}\n"
         send_msg = b"filename {template:%p/%s/LabRecorder/%r.xdf} " + param_str.encode()
         self.lab_recorder.sendall(send_msg)
@@ -134,8 +136,9 @@ class MainWindow(tk.Tk):
                         dialog.destroy()
                     else:
                         self.sel_pat = True
-                        self.update_parts_label()
+                        self.parts = 1
                         self.set_lab_dir()
+                        self.update_parts_label()
                         dialog.destroy()
                 except ValueError:
                     messagebox.showwarning("Invalid Input", "Age must be a number.")
@@ -163,7 +166,9 @@ class MainWindow(tk.Tk):
             sel_dialog.destroy()
 
         def confirm():
+            self.parts = 1
             self.set_lab_dir()
+            self.update_parts_label()
             self.sel_pat = True
             sel_dialog.destroy()
 
@@ -171,6 +176,34 @@ class MainWindow(tk.Tk):
         exit_button.grid(row=2, column=3, columnspan=2, pady=10)
 
         confirm_button = tk.Button(sel_dialog, text="Confirm", command=confirm)
+        confirm_button.grid(row=2, column=1, columnspan=2, pady=10)
+
+        sel_dialog.transient()  # Make the dialog modal
+        sel_dialog.grab_set()  # Prevent interaction with the main window
+        self.wait_window(sel_dialog)  # Wait for the dialog to close
+
+    def _type_run_(self):
+        sel_dialog = tk.Toplevel()
+        sel_dialog.title("Run section")
+        sel_dialog.geometry("300x200")
+
+        tk.Label(sel_dialog, text=f"Current part:{self.parts}").grid(row=1, column=1, padx=10, pady=5)
+        tk.Label(sel_dialog, text="Run number:").grid(row=2, column=0, padx=10, pady=5)
+        entry_run = tk.Entry(sel_dialog)
+        entry_run.grid(row=2, column=1, padx=10, pady=5)
+
+        def validate_and_close():
+            self.run_no = entry_run.get().strip()
+            if self.run_no:
+                try:
+                    self.run_no = int(self.run_no)  # Ensure age is a number
+                    sel_dialog.destroy()
+                except ValueError:
+                    messagebox.showwarning("Invalid Input", "Run number must be a number.")
+            else:
+                messagebox.showwarning("Missing Fields", "Please fill in all fields.")
+
+        confirm_button = tk.Button(sel_dialog, text="Confirm", command=validate_and_close)
         confirm_button.grid(row=2, column=1, columnspan=2, pady=10)
 
         sel_dialog.transient()  # Make the dialog modal
@@ -200,8 +233,7 @@ class MainWindow(tk.Tk):
         if not self.sel_pat:
             self._patient_selection_("not")
             return
-        remove_patient(self.name,self.surname,self.age)
-        
+        remove_patient(self.name,self.surname,self.age) 
         self.name = None
         self.surname = None
         self.age = None
@@ -221,16 +253,16 @@ class MainWindow(tk.Tk):
 
     def start_record(self):
         """
-        Start a series of 2 minute recordings
+        Start recording
         """
         if not self.sel_pat:
             self._patient_selection_("not")
             return
         
-        start_time = 0
-        run = 0
         self.start_clicked = True
         while self.start_clicked:
+
+            self._type_run_()
             if not self.running:
                 print("Connecting...")
                 self.exper = Brain(connect2headset())
@@ -240,27 +272,10 @@ class MainWindow(tk.Tk):
                 self.running = True
                 # send TCP signal to start
                 self.lab_recorder.sendall(b"start\n")
-                # start time measurement
-                start_time = time.time()
-            else:
-                if time.time() - start_time >= 2*60:
-                    # stop the loop
-                    self.lab_recorder.sendall(b"stop\n")
-                    self.exper.continue_running = False  # Stop the loop in `read_serial_data()`
-                    self.data = self.exper.get_data()
-                    filename = f"{self.name}_{self.surname}_{self.age}"
-                    save_data(self.data, self.parts, filename)
-                    #run again
-                    run += 1
-                    self.set_lab_dir(run)
-                    self.lab_recorder.sendall(b"start\n")
-                    self.exper.continue_running = True
-                    start_time = time.time()
-                    
+                   
     def stop_record(self):
         """
-        Stop a series of 2 minute recordings.
-        Each series is a single part
+        Stop recording
         """
         if not self.sel_pat:
             self._patient_selection_("not")
@@ -280,10 +295,10 @@ class MainWindow(tk.Tk):
             # save data
             #self.parts += 1
             save_data(self.data, self.parts)
-            self.parts += 1
-            run = 1
+            #self.parts += 1
+            #run = 1
             self.update_parts_label()
-            self.set_lab_dir(run) # setup for next part
+            self.set_lab_dir(self.run_no) # setup for next part
 
     def continue_record(self):
         if not self.sel_pat:
