@@ -48,8 +48,8 @@ class MainWindow(tk.Tk):
 
         # Single-selection Listbox for choosing a part
         self.port_listbox = tk.Listbox(self, selectmode=tk.SINGLE, height=3, exportselection=False)
-        self.port_listbox.insert(0, 5)
-        self.port_listbox.insert(1, 6)
+        for i in range(1,11):
+            self.port_listbox.insert(tk.END, i)
         self.port_listbox.pack()
         # Button to assign selected part to self.parts
         self.confirm_port_button = tk.Button(self, text="Set COM Port", command=self.set_port)
@@ -91,7 +91,7 @@ class MainWindow(tk.Tk):
     def set_port(self):
         selected = self.port_listbox.curselection()
         if selected:
-            self.COM_port = selected[0] + 5 # temporary fix 
+            self.COM_port = selected[0] + 1 # temporary fix 
             # self.set_lab_dir()
             self.update_COM_label()
             # messagebox.showinfo("Part Set", f"Selected Part: {self.parts}")
