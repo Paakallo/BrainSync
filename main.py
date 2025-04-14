@@ -11,7 +11,7 @@ class MainWindow(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("BrainSync")
-        self.geometry("400x200")
+        self.geometry("1000x1000")
 
         self.start_button = tk.Button(self, text="Start", command=self.start_record)
         self.start_button.pack()
@@ -19,26 +19,26 @@ class MainWindow(tk.Tk):
         self.stop_button = tk.Button(self, text="Stop", command=self.stop_record)
         self.stop_button.pack()
 
-        self.continue_button = tk.Button(self, text="Continue", command=self.continue_record)
+        self.continue_button = tk.Button(self, text="Abort", command=self.abort_record)
         self.continue_button.pack()
 
         self.select_button = tk.Button(self, text="Select patient", command=self.select_patient)
         self.select_button.pack()
 
-        self.reset_button = tk.Button(self, text="Reset patient", command=self.res_pat)
-        self.reset_button.pack()
+        # self.reset_button = tk.Button(self, text="Reset patient", command=self.res_pat)
+        # self.reset_button.pack()
 
         self.rem_part_button = tk.Button(self, text="Remove part", command=self.rem_part)
         self.rem_part_button.pack()
 
-        self.remove_button = tk.Button(self, text="Remove patient", command=self.rem_pat)
-        self.remove_button.pack()
+        # self.remove_button = tk.Button(self, text="Remove patient", command=self.rem_pat)
+        # self.remove_button.pack()
 
         self.unset_button = tk.Button(self, text="Unset patient", command=self.unset_pat)
         self.unset_button.pack()
 
         # Single-selection Listbox for choosing a part
-        self.parts_listbox = tk.Listbox(self, selectmode=tk.SINGLE, height=3, exportselection=False)
+        self.parts_listbox = tk.Listbox(self, selectmode=tk.SINGLE, height=7, exportselection=False)
         for i in range(1,8):
             self.parts_listbox.insert(tk.END, i)
         self.parts_listbox.pack()
@@ -47,15 +47,13 @@ class MainWindow(tk.Tk):
         self.confirm_parts_button.pack()
 
         # Single-selection Listbox for choosing a part
-        self.port_listbox = tk.Listbox(self, selectmode=tk.SINGLE, height=3, exportselection=False)
+        self.port_listbox = tk.Listbox(self, selectmode=tk.SINGLE, height=10, exportselection=False)
         for i in range(1,11):
             self.port_listbox.insert(tk.END, i)
         self.port_listbox.pack()
         # Button to assign selected part to self.parts
         self.confirm_port_button = tk.Button(self, text="Set COM Port", command=self.set_port)
         self.confirm_port_button.pack()
-
-
 
         # patient data
         self.name = None
@@ -78,6 +76,8 @@ class MainWindow(tk.Tk):
         self.info_label.pack()
         self.label = tk.Label(self, text=f"Current Part:{self.parts} \nCurrent run:{self.run_no}")
         self.label.pack()
+        self.run_status = tk.Label(self, text=f"Is Running:{self.running}")
+        self.run_status.pack()
 
         # display COM port
         self.port_info = tk.Label(self, text=f"COM{self.COM_port}")
@@ -119,6 +119,7 @@ class MainWindow(tk.Tk):
     def update_parts_label(self):
         self.label.config(text=f"Current Part: {self.parts} \nCurrent Run:{self.run_no}")   
         self.info_label.config(text=f"{self.name}_{self.surname}_{self.age}")        
+        self.run_status.config(text=f"Running status:{self.running}")
 
     def update_COM_label(self):
         self.port_info.config(text=f"COM{self.COM_port}")
@@ -242,6 +243,15 @@ class MainWindow(tk.Tk):
         sel_dialog.grab_set()  # Prevent interaction with the main window
         self.wait_window(sel_dialog)  # Wait for the dialog to close
 
+    def _wrong_port_(self):
+        sel_dialog = tk.Toplevel()
+        sel_dialog.title("Run section")
+        sel_dialog.geometry("300x200")
+        tk.Label(sel_dialog, text=f"Wrong port: COM{self.COM_port}").grid(row=2, column=1, columnspan=2, pady=10)
+        sel_dialog.transient()  # Make the dialog modal
+        sel_dialog.grab_set()  # Prevent interaction with the main window
+        self.wait_window(sel_dialog)
+
     def res_pat(self):
         if not self.sel_pat:
             self._patient_selection_("not")
@@ -291,20 +301,23 @@ class MainWindow(tk.Tk):
             self._patient_selection_("not")
             return
         
-        self.start_clicked = True
-#        while self.start_clicked:
+        # self.start_clicked = True
+        # while self.start_clicked:
 
         # self._type_run_()
         if not self.running:
             self._type_run_()
             print("Connecting...")
-            self.exper = Brain(connect2headset(f"COM{self.COM_port}"))
-            # Run `read_serial_data()` in a separate thread
-            self.thread = threading.Thread(target=self.exper.read_serial_data, daemon=True)
-            self.thread.start()
-            self.running = True
-            # send TCP signal to start
-            self.lab_recorder.sendall(b"start\n")
+            try:
+                self.exper = Brain(connect2headset(f"COM{self.COM_port}"))
+                # Run `read_serial_data()` in a separate thread
+                self.thread = threading.Thread(target=self.exper.read_serial_data, daemon=True)
+                self.thread.start()
+                self.running = True
+                # send TCP signal to start
+                self.lab_recorder.sendall(b"start\n")
+            except:
+                self._wrong_port_()
                    
     def stop_record(self):
         """
@@ -314,17 +327,15 @@ class MainWindow(tk.Tk):
             self._patient_selection_("not")
             return
         
-        if self.running and self.start_clicked:
+        if self.running:
             print("Shutting down connection")
             self.exper.continue_running = False  # Stop the loop in `read_serial_data()`
             self.data = self.exper.stop_serial_data()
             self.thread.join(timeout=2)  # Wait for the thread to stop
             self.running = False
-            self.start_clicked = False
-
+            # self.start_clicked = False
             # send TCP signal to stop
             self.lab_recorder.sendall(b"stop\n")
-
             # save data
             #self.parts += 1
             save_data(self.data, self.parts)
@@ -333,15 +344,20 @@ class MainWindow(tk.Tk):
             # self.update_parts_label()
             # self.set_lab_dir(self.run_no) # setup for next part
 
-    def continue_record(self):
+    def abort_record(self):
         if not self.sel_pat:
             self._patient_selection_("not")
             return
         # debug button
-        self.parts+=1
-        self.update_parts_label()
-        # send signal to labrecorder, continue recording
-        # self._continue_recording_()
+        if self.running:
+            print("Shutting down connection")
+            self.exper.continue_running = False  # Stop the loop in `read_serial_data()`
+            self.data = self.exper.stop_serial_data()
+            self.thread.join(timeout=2)  # Wait for the thread to stop
+            self.running = False
+            # self.start_clicked = False
+            # send TCP signal to stop
+            self.lab_recorder.sendall(b"stop\n")
 
     def select_patient(self):
         if self.sel_pat:
