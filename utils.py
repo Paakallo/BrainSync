@@ -12,7 +12,7 @@ import time
 
 
 ### STOP functions
-def save_data(data, part:int, filename):
+def save_data(data, part:int, filename, run):
     """
     Save the collected EEG data to a CSV file and plot the data.
     """
@@ -28,7 +28,10 @@ def save_data(data, part:int, filename):
     # if not os.path.exists(f'{name}{surname}{age}'):    
     # 	os.mkdir(f'{name}{surname}{age}')
 
-    file_index = check_file(part, filename)
+    # file_index = check_file(part, filename)
+    file_index = run
+    if not os.path.exists(f"{filename}/{part}/mindflex"):
+        os.makedirs(f"{filename}/{part}/mindflex")
     df.to_csv(f'{filename}/{part}/mindflex/{part}_{file_index}.csv', index=False)
     # plot_eeg_data(df, part, file_index)
 
@@ -182,9 +185,9 @@ def connect2headset(port="COM5"):
         # assume COM port is assigned to headset
         serial_connection = serial.Serial(
             port=port,
-            baudrate=9600,
-            parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE,
-            bytesize=serial.SEVENBITS
+            baudrate=9600
+            # parity=serial.PARITY_NONE,
+            # stopbits=serial.STOPBITS_ONE,
+            # bytesize=serial.SEVENBITS
         )
     return serial_connection

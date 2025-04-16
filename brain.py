@@ -111,7 +111,7 @@ class Brain:
             try:
                 if self.serial_connection.inWaiting() > 0:
                     self.current_byte = self.serial_connection.read(1)
-
+                    
                     if ord(self.previous_byte) == 170 and ord(self.current_byte) == 170 and not self.is_packet_in_progress:
                         self.is_packet_in_progress = True
                     elif len(self.packet_buffer) == 1:

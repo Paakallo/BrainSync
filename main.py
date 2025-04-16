@@ -31,20 +31,20 @@ class MainWindow(tk.Tk):
         self.rem_part_button = tk.Button(self, text="Remove part", command=self.rem_part)
         self.rem_part_button.pack()
 
-        # self.remove_button = tk.Button(self, text="Remove patient", command=self.rem_pat)
-        # self.remove_button.pack()
+        self.remove_button = tk.Button(self, text="Remove patient", command=self.rem_pat)
+        self.remove_button.pack()
 
         self.unset_button = tk.Button(self, text="Unset patient", command=self.unset_pat)
         self.unset_button.pack()
 
         # Single-selection Listbox for choosing a part
-        self.parts_listbox = tk.Listbox(self, selectmode=tk.SINGLE, height=7, exportselection=False)
-        for i in range(1,8):
-            self.parts_listbox.insert(tk.END, i)
-        self.parts_listbox.pack()
+        # self.parts_listbox = tk.Listbox(self, selectmode=tk.SINGLE, height=7, exportselection=False)
+        # for i in range(1,8):
+            # self.parts_listbox.insert(tk.END, i)
+        # self.parts_listbox.pack()
         # Button to assign selected part to self.parts
-        self.confirm_parts_button = tk.Button(self, text="Set Selected Part", command=self.set_selected_part)
-        self.confirm_parts_button.pack()
+        # self.confirm_parts_button = tk.Button(self, text="Set Selected Part", command=self.set_selected_part)
+        # self.confirm_parts_button.pack()
 
         # Single-selection Listbox for choosing a part
         self.port_listbox = tk.Listbox(self, selectmode=tk.SINGLE, height=10, exportselection=False)
@@ -113,8 +113,12 @@ class MainWindow(tk.Tk):
         # session = self.parts + 1 # current part maybe 0, but when data is saved, current part is 1
         session = self.parts
         param_str = f"{{run:{run}}} {{participant:{participant}}} {{session:{session}}} {{task:Default}} {{modality:eeg}}\n"
-        send_msg = b"filename {template:%p/%s/LabRecorder/%r.xdf} " + param_str.encode()
-        self.lab_recorder.sendall(send_msg)
+        run = f"{self.run_no}.xdf"
+        klamra = b"}"
+        end_line = b"\n"
+        send_msg = b"{template:%p/%s/LabRecorder/" + run.encode() + klamra + param_str.encode() 
+        # self.lab_recorder.sendall(send_msg)
+        self.lab_recorder.sendall(b"filename {root:C:\\BrainSync\\data}" + send_msg)
 
     def update_parts_label(self):
         self.label.config(text=f"Current Part: {self.parts} \nCurrent Run:{self.run_no}")   
@@ -218,16 +222,22 @@ class MainWindow(tk.Tk):
         sel_dialog.title("Run section")
         sel_dialog.geometry("300x200")
 
-        tk.Label(sel_dialog, text=f"Current part:{self.parts}").grid(row=1, column=1, padx=10, pady=5)
+        tk.Label(sel_dialog, text=f"Part:").grid(row=1, column=0, padx=10, pady=5)
         tk.Label(sel_dialog, text="Run number:").grid(row=2, column=0, padx=10, pady=5)
         entry_run = tk.Entry(sel_dialog)
         entry_run.grid(row=2, column=1, padx=10, pady=5)
+        
+        entry_part = tk.Entry(sel_dialog)
+        entry_part.grid(row=1, column=1, padx=10, pady=5)
 
         def validate_and_close():
             self.run_no = entry_run.get().strip()
-            if self.run_no:
+            self.parts = entry_part.get().strip()
+
+            if self.run_no and self.parts:
                 try:
                     self.run_no = int(self.run_no)  # Ensure age is a number
+                    self.parts = int(self.parts)
                     self.set_lab_dir(self.run_no)
                     self.update_parts_label()
                     sel_dialog.destroy()
@@ -237,7 +247,7 @@ class MainWindow(tk.Tk):
                 messagebox.showwarning("Missing Fields", "Please fill in all fields.")
 
         confirm_button = tk.Button(sel_dialog, text="Confirm", command=validate_and_close)
-        confirm_button.grid(row=2, column=1, columnspan=2, pady=10)
+        confirm_button.grid(row=3, column=1, columnspan=2, pady=10)
 
         sel_dialog.transient()  # Make the dialog modal
         sel_dialog.grab_set()  # Prevent interaction with the main window
@@ -307,6 +317,7 @@ class MainWindow(tk.Tk):
         # self._type_run_()
         if not self.running:
             self._type_run_()
+            self.set_lab_dir(self.run_no)
             print("Connecting...")
             try:
                 self.exper = Brain(connect2headset(f"COM{self.COM_port}"))
@@ -316,6 +327,7 @@ class MainWindow(tk.Tk):
                 self.running = True
                 # send TCP signal to start
                 self.lab_recorder.sendall(b"start\n")
+                self.update_parts_label()
             except:
                 self._wrong_port_()
                    
@@ -336,9 +348,11 @@ class MainWindow(tk.Tk):
             # self.start_clicked = False
             # send TCP signal to stop
             self.lab_recorder.sendall(b"stop\n")
+            self.update_parts_label()
             # save data
             #self.parts += 1
-            save_data(self.data, self.parts)
+            save_data(self.data, self.parts, f"{self.name}_{self.surname}_{self.age}", self.run_no)
+            
             #self.parts += 1
             #run = 1
             # self.update_parts_label()
