@@ -172,7 +172,7 @@ def connect2headset(port="COM5"):
     if sys.platform == 'linux':
         serial_connection = serial.Serial(
             # assume port is assigned to headset
-            port=port,
+            port="/dev/ttyUSB0",
             baudrate=9600,
             parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,
