@@ -42,9 +42,9 @@ def plot_eeg_data(df, part, file_index):
     ax.set_ylabel('Amplitude')
     ax.set_title("Brain Scan")
     
-    last_min = df.loc[0,'timestamp'] + datetime.timedelta(minutes=1)
+    # last_min = df.loc[0,'timestamp'] + datetime.timedelta(minutes=1)
     
-    df = df[df['timestamp']<=last_min]
+    # df = df[df['timestamp']<=last_min]
     time = df['timestamp'].values
     for column in df.columns:
         if column == 'timestamp':
