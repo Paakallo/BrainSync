@@ -4,3 +4,4 @@ test/
 **/__pycache__/**
 patients.json
 data/
+brain.nix
