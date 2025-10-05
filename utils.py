@@ -1,3 +1,4 @@
+import numpy as np
 import serial
 import sys
 import pandas as pd
@@ -32,29 +33,6 @@ def save_data(data, part:int, filename):
     df.to_csv(f'{filename}/{part}/mindflex/{part}_{file_index}.csv', index=False)
     # plot_eeg_data(df, part, file_index)
 
-def plot_eeg_data(df, part, file_index):
-    """
-    Plot the EEG data and save the plot as a PNG file.
-    """
-    fig, ax = plt.subplots(figsize=(18,10))
-
-    ax.set_xlabel('Time [s]')
-    ax.set_ylabel('Amplitude')
-    ax.set_title("Brain Scan")
-    
-    # last_min = df.loc[0,'timestamp'] + datetime.timedelta(minutes=1)
-    
-    # df = df[df['timestamp']<=last_min]
-    time = df['timestamp'].values
-    for column in df.columns:
-        if column == 'timestamp':
-            continue
-        ax.plot(time, df[column].values, label=column)
-        
-    fig.tight_layout()
-    ax.legend(loc='upper right')
-    plt.savefig(f'{part}_{file_index}.png')
-    plt.show()
 
 def check_file(part, filename):
     file_index = 1

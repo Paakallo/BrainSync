@@ -1,3 +1,6 @@
 pyserial
 pandas
 matplotlib
+pyxdf
+mne
+scipy
