@@ -47,6 +47,20 @@ def plot_raw_eeg(data, chart_name:str="eeg_plot"):
     plt.savefig(f"{chart_name}.png")
 
 
+def remove_empty_channels(array:np.array):
+    n_channels, _ = array.shape
+    has_value = False # if a stream has value
+    new_array = np.copy(array)
+    for channel in range(n_channels):
+        if np.all(array[channel]==0):
+            np.delete(new_array, np.where(new_array==array[channel]))
+        else:
+            has_value = True
+    if has_value:
+        return new_array
+    else:
+        return np.zeros(array.shape)
+
 def find_nearest(array, value):
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
