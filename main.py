@@ -7,6 +7,8 @@ import threading
 import socket
 
 
+# Tutaj labrecorder frontend
+
 class MainWindow(tk.Tk):
     def __init__(self):
         super().__init__()
