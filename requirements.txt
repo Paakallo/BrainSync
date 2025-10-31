@@ -4,3 +4,4 @@ matplotlib
 pyxdf
 mne
 scipy
+pylsl

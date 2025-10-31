@@ -17,41 +17,54 @@
 #
 
 import numpy as np
-
+import pylsl
 
 class SignalGen():
 
-    def __init__(self, freq1, freq2, s_num):
+    def __init__(self, freq1, freq2, duration):
         self.freq1 = freq1
         self.freq2 = freq2
-        self.s_num = s_num # s_num liczba próbek, później mnożona przez częstotliwość
+        self.duration = duration 
         self.start = False
 
-    def constructNoise(self):
-        # szum pochodzi od pradu 50 Hz oraz ruchow
-        pass
+    def constructNoise(self, y1:np.array, y2:np.array):
+        # eye blink, muscle movement, white noise
+        return y1, y2
 
     def filterSignal(self):
-        # wpierdol jakies filtry w stylu notcha i innego gowna
         pass
 
     def constructSignal(self):
-        # generuj sygnał tak, że
-        # jest całe dzielone na polowe, i te polowki leca pozniej sklejone
-        x1 = np.linspace(-np.pi, np.pi, self.freq1*self.s_num)
-        x2 = np.linspace(-np.pi, np.pi, self.freq2*self.s_num)
+        x1 = np.linspace(-np.pi, np.pi, self.freq1*self.duration)
+        x2 = np.linspace(-np.pi, np.pi, self.freq2*self.duration)
         y1 = np.sin(x1)
         y2 = np.sin(x2)
         
-
         return y1, y2
-
-
 
     def sendData(self):
         # wysyłaj jeden punkt, co sekunde, wpierdol to gowno w inny watek
         self.start = True
-        while self.start:
-            y1, y2 = self.constructSignal()
-            
+        y1, y2 = self.constructSignal()
+
+        y1_samples = []
+        y2_samples = []
+        for i in range(self.duration):
+            y1_s = y1[i:i+self.freq1]
+            y2_s = y2[i:i+self.freq2]
+            y1_samples.append(y1_s)
+            y2_samples.append(y2_s)
+
+        print("y1_sample length: ", len(y1_samples))
+        print("y2_sample length: ", len(y2_samples))
+
+        print(y2_samples[0].shape)
+
+        # while self.start:
+        
+
+if __name__ == "__main__":
+    gen = SignalGen(1, 256, 10)
+
+    gen.sendData()
 

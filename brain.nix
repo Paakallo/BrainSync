@@ -7,6 +7,7 @@ pkgs.mkShell {
                         pyserial
                         pandas
 			matplotlib
+                        pylsl
                 ]))
         ];
 
