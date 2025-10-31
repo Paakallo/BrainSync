@@ -16,8 +16,11 @@
 #
 #
 
+import time
 import numpy as np
-import pylsl
+from pylsl import StreamInfo, StreamOutlet, local_clock
+import uuid
+
 
 class SignalGen():
 
@@ -42,9 +45,8 @@ class SignalGen():
         
         return y1, y2
 
-    def sendData(self):
+    def sendData(self, name, type="EEG"):
         # wysyłaj jeden punkt, co sekunde, wpierdol to gowno w inny watek
-        self.start = True
         y1, y2 = self.constructSignal()
 
         y1_samples = []
@@ -60,11 +62,24 @@ class SignalGen():
 
         print(y2_samples[0].shape)
 
-        # while self.start:
-        
+        y1_info = StreamInfo(name, type, 1, self.freq1, "float32", str(uuid.uuid1()))
+        # next make an outlet
+        y1_outlet = StreamOutlet(y1_info)
+
+
+        print("now sending data...")
+        start_time = local_clock()
+        sent_samples = 0
+        self.start = True
+        while self.start:
+            for val in y1:
+                print(f"sending {val}...")
+                y1_outlet.push_sample([val])
+                time.sleep(0.01)
+            # break
 
 if __name__ == "__main__":
     gen = SignalGen(1, 256, 10)
 
-    gen.sendData()
+    gen.sendData("test_stream")
 
