@@ -17,6 +17,7 @@
 #
 
 import time
+from matplotlib import pyplot as plt
 import numpy as np
 from pylsl import StreamInfo, StreamOutlet, local_clock
 import uuid
@@ -66,7 +67,7 @@ class SignalGen():
         # next make an outlet
         y1_outlet = StreamOutlet(y1_info)
 
-
+        answer = input("Type anything to start recording...")
         print("now sending data...")
         start_time = local_clock()
         sent_samples = 0
@@ -76,7 +77,7 @@ class SignalGen():
                 print(f"sending {val}...")
                 y1_outlet.push_sample([val])
                 time.sleep(0.01)
-            # break
+            break
 
 if __name__ == "__main__":
     gen = SignalGen(1, 256, 10)

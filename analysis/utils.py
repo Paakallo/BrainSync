@@ -2,6 +2,16 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pyxdf
 import mne
+import os
+
+bands = {
+            'delta': (0.5, 4),
+            'theta': (4, 8),
+            'alpha': (8, 12),
+            'beta' : (13, 30),
+            'low_gamma': (30, 45),
+            'high_gamma': (55, 100)
+        }
 
 
 def plot_eeg_data(df, part, file_index):
@@ -98,7 +108,6 @@ def extract_all_seq_waves(freq:np.array, pow:np.array, bands:dict):
         seq_waves[band] = seq_wave
     return seq_waves
 
-
 def channel_psd(ch_psd:list[tuple[np.array, np.array]], bands:dict):
     ch_waves = init_ch_waves(bands.keys()) # dict of lists
     for i, tup in enumerate(ch_psd):
@@ -113,3 +122,19 @@ def channel_psd(ch_psd:list[tuple[np.array, np.array]], bands:dict):
     return ch_waves
 
 
+def get_xdf_data(file_name:str): 
+    dir_path = os.getcwd()
+    data_path = os.path.join(dir_path, "data", f"{file_name}.xdf")
+    streams, header = pyxdf.load_xdf(data_path)
+    sfreq = float(streams[0]["info"]["nominal_srate"][0])
+
+    stream_list: list[np.array] = []
+    for stream in streams:
+        if stream['info']['type'][0].lower() != 'eeg': # temp fix
+            continue
+        data = np.array(stream["time_series"]).T # shape (n_channels, n_times)
+        data = remove_empty_channels(data)
+        if np.all(data==0):
+            continue
+        stream_list.append(data)
+    return stream_list

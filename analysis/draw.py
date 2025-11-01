@@ -4,11 +4,17 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
 import os
-from utils import plot_eeg_data
+from utils import *
+
+stream_list = get_xdf_data("test3")
 
 
+data = stream_list[0]
+print(data.shape)
+plt.figure()
 
-df = pd.read_csv("data/Sergiusz_Pyskowacki_21/1/mindflex/1_1.csv")
-plot_eeg_data(df, "1", "1")
 
+plt.plot(data.flatten())
+
+plt.show()
 
