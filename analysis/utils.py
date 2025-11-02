@@ -138,3 +138,22 @@ def get_xdf_data(file_name:str):
             continue
         stream_list.append(data)
     return stream_list
+
+def show_xdf_data(file_name:str): 
+    dir_path = os.getcwd()
+    data_path = os.path.join(dir_path, "data", f"{file_name}.xdf")
+    streams, header = pyxdf.load_xdf(data_path)
+
+    streams_list = []
+    for stream in streams:
+        time_stamps = stream['time_stamps']
+        data = np.array(stream["time_series"]).T
+
+        new_stamps = np.copy(time_stamps)
+        base = time_stamps[0]
+        for i, stamp in enumerate(time_stamps):
+            new_stamps[i] = stamp - base
+
+        data_tuple = (new_stamps, data)
+        streams_list.append(data_tuple)
+    return streams_list

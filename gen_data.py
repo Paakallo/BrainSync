@@ -30,6 +30,7 @@ class SignalGen():
         self.freq1 = freq1
         self.freq2 = freq2
         self.duration = duration
+        self.delay = 0.01 # seconds
 
     def constructNoise(self, y1:np.array, y2:np.array):
         # eye blink, muscle movement, white noise
@@ -45,11 +46,16 @@ class SignalGen():
         y2 = np.sin(x2)
         return y1, y2
 
-    def push2inlet(self, outlet:StreamOutlet, signal:list[np.array], freq:int):
+    def push2inlet(self, outlet:StreamOutlet, signal:list[np.array], freq:int, if_delay:bool=False):
         info = outlet.get_info()
         for val in signal:
             print(f"sending {val} from {info.name()}")
-            outlet.push_sample([val])
+            if if_delay:
+                sample_time = time.time() + self.delay
+                self.delay+=self.delay
+            else:
+                sample_time = time.time()
+            outlet.push_sample([val], sample_time)
             time.sleep(1/freq)
 
     def divideChunks(self, signal:np.array, freq:int):
@@ -75,7 +81,7 @@ class SignalGen():
         y1_outlet = self.createOutlet(name1, type, self.freq1)
         y2_outlet = self.createOutlet(name2, type, self.freq2)
         
-        thread1 = threading.Thread(target=self.push2inlet, args=(y1_outlet, y1, self.freq1))
+        thread1 = threading.Thread(target=self.push2inlet, args=(y1_outlet, y1, self.freq1, True))
         thread2 = threading.Thread(target=self.push2inlet, args=(y2_outlet, y2, self.freq2))
 
         lab_recorder = socket.create_connection(("localhost", 22345))
