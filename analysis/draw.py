@@ -6,11 +6,13 @@ import datetime
 import os
 from utils import *
 
-stream_list = get_xdf_data("test3")
+stream_list = get_xdf_data("%r")
 
+print(len(stream_list))
 
 data = stream_list[0]
 print(data.shape)
+
 plt.figure()
 
 
