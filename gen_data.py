@@ -73,28 +73,27 @@ class SignalGen():
         # print(y2_samples[0].shape)
 
         y1_outlet = self.createOutlet(name1, type, self.freq1)
-        # y2_outlet = self.createOutlet(name2, type, self.freq2)
+        y2_outlet = self.createOutlet(name2, type, self.freq2)
         
         thread1 = threading.Thread(target=self.push2inlet, args=(y1_outlet, y1, self.freq1))
-        # thread2 = threading.Thread(target=self.push2inlet, args=(y2_outlet, y2, self.freq2))
+        thread2 = threading.Thread(target=self.push2inlet, args=(y2_outlet, y2, self.freq2))
 
         lab_recorder = socket.create_connection(("localhost", 22345))
         lab_recorder.sendall(b"update\n")
         lab_recorder.sendall(b"select all\n")
 
         answer = input("Type anything to start recording...")
-        # lab_recorder.sendall(b"start\n")
+        lab_recorder.sendall(b"start\n")
+        time.sleep(5.0) # delay for graceful start
         
         thread1.start()
-        # thread2.start()
+        thread2.start()
 
         thread1.join()
-
-        time.sleep(5.0)
-        # lab_recorder.sendall(b"stop\n")
-        time.sleep(2.0)
-        # lab_recorder.sendall(b"select none\n")
-        time.sleep(5.0)
+        thread2.join()
+        lab_recorder.sendall(b"stop\n")
+        time.sleep(5.0) # delay for graceful exit
+        lab_recorder.sendall(b"select none\n")
         lab_recorder.close()
 
 if __name__ == "__main__":
