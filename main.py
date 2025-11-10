@@ -3,14 +3,16 @@ from tkinter import messagebox
 from tkinter import dialog
 from brain import Brain
 from utils import *
+from gen_data import SignalGen
 import threading
 import socket
-
+import argparse
+import os
 
 # Tutaj labrecorder frontend
 
 class MainWindow(tk.Tk):
-    def __init__(self):
+    def __init__(self, use_lab:bool, use_sim:bool):
         super().__init__()
         self.title("BrainSync")
         self.geometry("1000x1000")
@@ -57,6 +59,11 @@ class MainWindow(tk.Tk):
         self.confirm_port_button = tk.Button(self, text="Set COM Port", command=self.set_port)
         self.confirm_port_button.pack()
 
+        # control booleans
+        self.use_lab = use_lab
+        self.use_sim = use_sim
+        self.lab_recorder = None
+
         # patient data
         self.name = None
         self.surname = None
@@ -87,9 +94,24 @@ class MainWindow(tk.Tk):
 
         if not os.path.exists('data'):
             os.mkdir('data')
-        self.lab_recorder = socket.create_connection(("localhost", 22345))
-        self.lab_recorder.sendall(b"select all\n")
+        
+        if self.use_lab:
+            self.lab_recorder = socket.create_connection(("localhost", 22345))
+            self.lab_recorder.sendall(b"select all\n")
 
+        if self.use_sim:
+            self.exer = SignalGen(1, 256, 10)
+
+    def send_msg(self, msg:str):
+        if self.use_lab:
+            self.lab_recorder.sendall(msg)
+    
+    def send_start(self):
+        
+
+    def send_stop(self):
+        pass          
+ 
     def set_port(self):
         selected = self.port_listbox.curselection()
         if selected:
@@ -110,13 +132,13 @@ class MainWindow(tk.Tk):
         else:
             messagebox.showwarning("No Selection", "Please select a part.")
 
-    def set_lab_dir(self,run = 1):
+    def set_lab_dir(self, run = 1):
         participant = f"{self.name}_{self.surname}_{self.age}"
         # session = self.parts + 1 # current part maybe 0, but when data is saved, current part is 1
         session = self.parts
         param_str = f"{{run:{run}}} {{participant:{participant}}} {{session:{session}}} {{task:Default}} {{modality:eeg}}\n"
         send_msg = b"filename {template:%p/%s/LabRecorder/%r.xdf} " + param_str.encode()
-        self.lab_recorder.sendall(send_msg)
+        self.send_msg(send_msg)
 
     def update_parts_label(self):
         self.label.config(text=f"Current Part: {self.parts} \nCurrent Run:{self.run_no}")   
@@ -317,7 +339,7 @@ class MainWindow(tk.Tk):
                 self.thread.start()
                 self.running = True
                 # send TCP signal to start
-                self.lab_recorder.sendall(b"start\n")
+                self.send_msg(b"start\n")
             except:
                 self._wrong_port_()
                    
@@ -337,7 +359,7 @@ class MainWindow(tk.Tk):
             self.running = False
             # self.start_clicked = False
             # send TCP signal to stop
-            self.lab_recorder.sendall(b"stop\n")
+            self.send_msg(b"stop\n")
             # save data
             #self.parts += 1
             save_data(self.data, self.parts)
@@ -359,7 +381,7 @@ class MainWindow(tk.Tk):
             self.running = False
             # self.start_clicked = False
             # send TCP signal to stop
-            self.lab_recorder.sendall(b"stop\n")
+            self.send_msg(b"stop\n")
 
     def select_patient(self):
         if self.sel_pat:
@@ -374,5 +396,26 @@ class MainWindow(tk.Tk):
             self._type_data_()
 
 if __name__ == "__main__":
-    app = MainWindow()
+    parser = argparse.ArgumentParser(description='App args')
+    # parser.add_argument('--use_lab', required=True, type=bool, help='use labrecorder')
+    # parser.add_argument('--use_sim', required=True, type=bool, help='use labrecorder')
+    parser.add_argument('use_lab', type=int, help='use labrecorder (1/0)')
+    parser.add_argument('use_sim', type=int, help='use simulator (1/0)')
+    args = parser.parse_args()
+
+    if args.use_lab == 1:
+        use_lab = True
+    elif args.use_lab == 0:
+        use_lab = False
+    else:
+        raise TypeError
+
+    if args.use_sim == 1:
+        use_sim = True
+    elif args.use_sim == 0:
+        use_sim = False
+    else:
+        raise TypeError
+
+    app = MainWindow(use_lab, use_sim)
     app.mainloop()
