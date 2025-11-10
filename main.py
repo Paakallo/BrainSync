@@ -23,8 +23,8 @@ class MainWindow(tk.Tk):
         self.stop_button = tk.Button(self, text="Stop", command=self.stop_record)
         self.stop_button.pack()
 
-        self.continue_button = tk.Button(self, text="Abort", command=self.abort_record)
-        self.continue_button.pack()
+        # self.continue_button = tk.Button(self, text="Abort", command=self.abort_record)
+        # self.continue_button.pack()
 
         self.select_button = tk.Button(self, text="Select patient", command=self.select_patient)
         self.select_button.pack()
@@ -107,10 +107,24 @@ class MainWindow(tk.Tk):
             self.lab_recorder.sendall(msg)
     
     def send_start(self):
-        
+        if self.use_sim:
+            self.exer.sendData("1_Hz", "256_Hz")
+        else:
+            self.exper = Brain(connect2headset(f"COM{self.COM_port}"))
+            # Run `read_serial_data()` in a separate thread
+            self.thread = threading.Thread(target=self.exper.read_serial_data, daemon=True)
+            self.thread.start()
+            self.send_msg(b"start\n")
 
     def send_stop(self):
-        pass          
+        if self.use_sim:
+            self.exer.running = False
+        else:
+            self.exper.continue_running = False  # Stop the loop in `read_serial_data()`
+            self.data = self.exper.stop_serial_data()
+            self.thread.join(timeout=2)  # Wait for the thread to stop
+            self.running = False
+            self.send_msg(b"stop\n")
  
     def set_port(self):
         selected = self.port_listbox.curselection()
@@ -325,21 +339,13 @@ class MainWindow(tk.Tk):
             self._patient_selection_("not")
             return
         
-        # self.start_clicked = True
-        # while self.start_clicked:
-
-        # self._type_run_()
         if not self.running:
             self._type_run_()
             print("Connecting...")
             try:
                 self.exper = Brain(connect2headset(f"COM{self.COM_port}"))
-                # Run `read_serial_data()` in a separate thread
-                self.thread = threading.Thread(target=self.exper.read_serial_data, daemon=True)
-                self.thread.start()
+                self.send_start()
                 self.running = True
-                # send TCP signal to start
-                self.send_msg(b"start\n")
             except:
                 self._wrong_port_()
                    
@@ -352,36 +358,24 @@ class MainWindow(tk.Tk):
             return
         
         if self.running:
-            print("Shutting down connection")
-            self.exper.continue_running = False  # Stop the loop in `read_serial_data()`
-            self.data = self.exper.stop_serial_data()
-            self.thread.join(timeout=2)  # Wait for the thread to stop
-            self.running = False
-            # self.start_clicked = False
-            # send TCP signal to stop
-            self.send_msg(b"stop\n")
-            # save data
-            #self.parts += 1
+            print("Shutting down connection") 
+            self.send_stop()
             save_data(self.data, self.parts)
-            #self.parts += 1
-            #run = 1
-            # self.update_parts_label()
-            # self.set_lab_dir(self.run_no) # setup for next part
 
-    def abort_record(self):
-        if not self.sel_pat:
-            self._patient_selection_("not")
-            return
-        # debug button
-        if self.running:
-            print("Shutting down connection")
-            self.exper.continue_running = False  # Stop the loop in `read_serial_data()`
-            self.data = self.exper.stop_serial_data()
-            self.thread.join(timeout=2)  # Wait for the thread to stop
-            self.running = False
-            # self.start_clicked = False
-            # send TCP signal to stop
-            self.send_msg(b"stop\n")
+    # def abort_record(self):
+    #     if not self.sel_pat:
+    #         self._patient_selection_("not")
+    #         return
+    #     # debug button
+    #     if self.running:
+    #         print("Shutting down connection")
+    #         self.exper.continue_running = False  # Stop the loop in `read_serial_data()`
+    #         self.data = self.exper.stop_serial_data()
+    #         self.thread.join(timeout=2)  # Wait for the thread to stop
+    #         self.running = False
+    #         # self.start_clicked = False
+    #         # send TCP signal to stop
+    #         self.send_msg(b"stop\n")
 
     def select_patient(self):
         if self.sel_pat:

@@ -26,11 +26,17 @@ import threading
 
 class SignalGen():
 
-    def __init__(self, freq1, freq2, duration):
+    def __init__(self, freq1, freq2, duration=0, labrecorder=None):
         self.freq1 = freq1
         self.freq2 = freq2
         self.duration = duration
         self.delay = 0.01 # seconds
+        
+        self.thread1:threading.Thread = None
+        self.thread2:threading.Thread = None
+
+        self.labrecorder:socket = labrecorder
+        self.running = False # running condition for app integration
 
     def constructNoise(self, y1:np.array, y2:np.array):
         # eye blink, muscle movement, white noise
@@ -40,6 +46,9 @@ class SignalGen():
         pass
 
     def constructSignal(self):
+        if self.duration == 0:
+            print("duration is zero, couldn't construct signals")
+            return None, None
         x1 = np.linspace(-np.pi, np.pi, self.freq1*self.duration)
         x2 = np.linspace(-np.pi, np.pi, self.freq2*self.duration)
         y1 = np.sin(x1)
@@ -48,15 +57,28 @@ class SignalGen():
 
     def push2inlet(self, outlet:StreamOutlet, signal:list[np.array], freq:int, if_delay:bool=False):
         info = outlet.get_info()
-        for val in signal:
-            print(f"sending {val} from {info.name()}")
-            if if_delay:
-                sample_time = time.time() + self.delay
-                self.delay+=self.delay
-            else:
-                sample_time = time.time()
-            outlet.push_sample([val], sample_time)
-            time.sleep(1/freq)
+        if signal is not None:
+            for val in signal:
+                print(f"sending {val} from {info.name()}")
+                if if_delay:
+                    sample_time = time.time() + self.delay
+                    self.delay+=self.delay
+                else:
+                    sample_time = time.time()
+                outlet.push_sample([val], sample_time)
+                time.sleep(1/freq)
+        else:
+            self.running = True
+            while self.running:
+                if if_delay:
+                    sample_time = time.time() + self.delay
+                    self.delay+=self.delay
+                else:
+                    sample_time = time.time()
+                y = np.sin(2*np.pi*sample_time)
+                outlet.push_sample([y], sample_time)
+                time.sleep(1/freq)
+
 
     def divideChunks(self, signal:np.array, freq:int):
         samples: list[np.array] = []
@@ -71,6 +93,9 @@ class SignalGen():
         return outlet
 
     def sendData(self, name1, name2, type="EEG"):
+        y1_outlet = self.createOutlet(name1, type, self.freq1)
+        y2_outlet = self.createOutlet(name2, type, self.freq2)
+
         y1, y2 = self.constructSignal()
 
         # print("y1_sample length: ", len(y1_samples))
@@ -78,29 +103,31 @@ class SignalGen():
 
         # print(y2_samples[0].shape)
 
-        y1_outlet = self.createOutlet(name1, type, self.freq1)
-        y2_outlet = self.createOutlet(name2, type, self.freq2)
-        
-        thread1 = threading.Thread(target=self.push2inlet, args=(y1_outlet, y1, self.freq1, True))
-        thread2 = threading.Thread(target=self.push2inlet, args=(y2_outlet, y2, self.freq2))
+        self.thread1 = threading.Thread(target=self.push2inlet, args=(y1_outlet, y1, self.freq1, True))
+        self.thread2 = threading.Thread(target=self.push2inlet, args=(y2_outlet, y2, self.freq2))
 
-        lab_recorder = socket.create_connection(("localhost", 22345))
-        lab_recorder.sendall(b"update\n")
-        lab_recorder.sendall(b"select all\n")
+        if self.labrecorder is None:
+            self.lab_recorder = socket.create_connection(("localhost", 22345))
+        self.lab_recorder.sendall(b"update\n")
+        self.lab_recorder.sendall(b"select all\n")
 
-        answer = input("Type anything to start recording...")
-        lab_recorder.sendall(b"start\n")
-        time.sleep(5.0) # delay for graceful start
-        
-        thread1.start()
-        thread2.start()
+        answer = input("Press enter to start recording...")
+        self.lab_recorder.sendall(b"start\n")
+        time.sleep(5.0) # delay for graceful start            
+        self.thread1.start()
+        self.thread2.start()
+        # there is no need for external stop
+        if self.duration != 0:
+            self.stopData()
 
-        thread1.join()
-        thread2.join()
-        lab_recorder.sendall(b"stop\n")
+    def stopData(self):
+        self.thread1.join()
+        self.thread2.join()
+        self.lab_recorder.sendall(b"stop\n")
         time.sleep(5.0) # delay for graceful exit
-        lab_recorder.sendall(b"select none\n")
-        lab_recorder.close()
+        self.lab_recorder.sendall(b"select none\n")
+        self.lab_recorder.close()
+
 
 if __name__ == "__main__":
     gen = SignalGen(1, 256, 10)
