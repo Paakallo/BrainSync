@@ -9,20 +9,15 @@ from utils import *
 stream_list = show_xdf_data("%r")
 
 
-fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(12, 5))
-
+plt.figure()
+plt.title("Clock drift")
 timestamps, data = stream_list[0]
-ax1.plot(timestamps, data.flatten())
-ax1.set_title("Stream 0")
-ax1.set_xlabel("Sample")
-ax1.set_ylabel("Value")
+plt.plot(timestamps, data.flatten(), label="Stream_1_Hz")
 
 timestamps, data = stream_list[1]
-ax2.plot(timestamps, data.flatten())
-ax2.set_title("Stream 1")
-ax2.set_xlabel("Sample")
+plt.plot(timestamps, data.flatten(), label="Stream_256_Hz")
 
 plt.tight_layout()
-
+plt.legend()
 plt.show()
 
