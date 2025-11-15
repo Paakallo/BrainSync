@@ -94,13 +94,13 @@ class MainWindow(tk.Tk):
 
         if not os.path.exists('data'):
             os.mkdir('data')
-        
+
         if self.use_lab:
             self.lab_recorder = socket.create_connection(("localhost", 22345))
             self.lab_recorder.sendall(b"select all\n")
 
         if self.use_sim:
-            self.exer = SignalGen(1, 256, 10)
+            self.exer = SignalGen(1, 256, 0, self.lab_recorder)
 
     def send_msg(self, msg:str):
         if self.use_lab:
@@ -110,15 +110,19 @@ class MainWindow(tk.Tk):
         if self.use_sim:
             self.exer.sendData("1_Hz", "256_Hz")
         else:
-            self.exper = Brain(connect2headset(f"COM{self.COM_port}"))
-            # Run `read_serial_data()` in a separate thread
-            self.thread = threading.Thread(target=self.exper.read_serial_data, daemon=True)
-            self.thread.start()
-            self.send_msg(b"start\n")
+            try:
+                self.exper = Brain(connect2headset(f"COM{self.COM_port}"))
+                # Run `read_serial_data()` in a separate thread
+                self.thread = threading.Thread(target=self.exper.read_serial_data, daemon=True)
+                self.thread.start()
+                self.send_msg(b"start\n")
+            except:
+                self._wrong_port_()
 
     def send_stop(self):
         if self.use_sim:
             self.exer.running = False
+            self.exer.stopData()
         else:
             self.exper.continue_running = False  # Stop the loop in `read_serial_data()`
             self.data = self.exper.stop_serial_data()
@@ -342,12 +346,8 @@ class MainWindow(tk.Tk):
         if not self.running:
             self._type_run_()
             print("Connecting...")
-            try:
-                self.exper = Brain(connect2headset(f"COM{self.COM_port}"))
-                self.send_start()
-                self.running = True
-            except:
-                self._wrong_port_()
+            self.send_start()
+            self.running = True
                    
     def stop_record(self):
         """
@@ -360,7 +360,8 @@ class MainWindow(tk.Tk):
         if self.running:
             print("Shutting down connection") 
             self.send_stop()
-            save_data(self.data, self.parts)
+            if not self.use_sim: # save raw data from mindflex headset
+                save_data(self.data, self.parts)
 
     # def abort_record(self):
     #     if not self.sel_pat:

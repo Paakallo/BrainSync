@@ -35,7 +35,7 @@ class SignalGen():
         self.thread1:threading.Thread = None
         self.thread2:threading.Thread = None
 
-        self.labrecorder:socket = labrecorder
+        self.lab_recorder:socket = labrecorder
         self.running = False # running condition for app integration
 
     def constructNoise(self, y1:np.array, y2:np.array):
@@ -78,6 +78,7 @@ class SignalGen():
                 y = np.sin(2*np.pi*sample_time)
                 outlet.push_sample([y], sample_time)
                 time.sleep(1/freq)
+            print("running was set to False")
 
 
     def divideChunks(self, signal:np.array, freq:int):
@@ -106,23 +107,25 @@ class SignalGen():
         self.thread1 = threading.Thread(target=self.push2inlet, args=(y1_outlet, y1, self.freq1, True))
         self.thread2 = threading.Thread(target=self.push2inlet, args=(y2_outlet, y2, self.freq2))
 
-        if self.labrecorder is None:
+        if self.lab_recorder is None:
             self.lab_recorder = socket.create_connection(("localhost", 22345))
         self.lab_recorder.sendall(b"update\n")
         self.lab_recorder.sendall(b"select all\n")
 
-        answer = input("Press enter to start recording...")
+        if self.duration != 0:
+            answer = input("Press enter to start recording...")
         self.lab_recorder.sendall(b"start\n")
         time.sleep(5.0) # delay for graceful start            
         self.thread1.start()
         self.thread2.start()
-        # there is no need for external stop
+        # data recording is stopped externally
         if self.duration != 0:
             self.stopData()
 
     def stopData(self):
         self.thread1.join()
         self.thread2.join()
+        print("Threads finished their job")
         self.lab_recorder.sendall(b"stop\n")
         time.sleep(5.0) # delay for graceful exit
         self.lab_recorder.sendall(b"select none\n")
