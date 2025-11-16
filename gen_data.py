@@ -30,7 +30,7 @@ class SignalGen():
         self.freq1 = freq1
         self.freq2 = freq2
         self.duration = duration
-        self.delay = 0.01 # seconds
+        self.delay = 0.1 # seconds
         
         self.thread1:threading.Thread = None
         self.thread2:threading.Thread = None
@@ -62,11 +62,8 @@ class SignalGen():
             for val in signal:
                 print(f"sending {val} from {info.name()}")
                 if if_delay:
-                    # sample_time = time.time() + self.delay
-                    sample_time = local_clock() - start_time + self.delay
-                    self.delay+=self.delay
+                    sample_time = (local_clock() - start_time)*(1+self.delay)
                 else:
-                    # sample_time = time.time()
                     sample_time = local_clock() - start_time
                 outlet.push_sample([val], sample_time)
                 time.sleep(1/freq)
@@ -107,9 +104,8 @@ class SignalGen():
 
         # print(y2_samples[0].shape)
 
-        # self.thread1 = threading.Thread(target=self.push2inlet, args=(y1_outlet, y1, self.freq1, True))
         self.thread1 = threading.Thread(target=self.push2inlet, args=(y1_outlet, y1, self.freq1))
-        self.thread2 = threading.Thread(target=self.push2inlet, args=(y2_outlet, y2, self.freq2))
+        self.thread2 = threading.Thread(target=self.push2inlet, args=(y2_outlet, y2, self.freq2, True))
 
         if self.lab_recorder is None:
             self.lab_recorder = socket.create_connection(("localhost", 22345))
