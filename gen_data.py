@@ -57,14 +57,17 @@ class SignalGen():
 
     def push2inlet(self, outlet:StreamOutlet, signal:list[np.array], freq:int, if_delay:bool=False):
         info = outlet.get_info()
+        start_time = local_clock()
         if signal is not None:
             for val in signal:
                 print(f"sending {val} from {info.name()}")
                 if if_delay:
-                    sample_time = time.time() + self.delay
+                    # sample_time = time.time() + self.delay
+                    sample_time = local_clock() - start_time + self.delay
                     self.delay+=self.delay
                 else:
-                    sample_time = time.time()
+                    # sample_time = time.time()
+                    sample_time = local_clock() - start_time
                 outlet.push_sample([val], sample_time)
                 time.sleep(1/freq)
         else:
@@ -104,7 +107,8 @@ class SignalGen():
 
         # print(y2_samples[0].shape)
 
-        self.thread1 = threading.Thread(target=self.push2inlet, args=(y1_outlet, y1, self.freq1, True))
+        # self.thread1 = threading.Thread(target=self.push2inlet, args=(y1_outlet, y1, self.freq1, True))
+        self.thread1 = threading.Thread(target=self.push2inlet, args=(y1_outlet, y1, self.freq1))
         self.thread2 = threading.Thread(target=self.push2inlet, args=(y2_outlet, y2, self.freq2))
 
         if self.lab_recorder is None:

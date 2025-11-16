@@ -6,6 +6,7 @@ import datetime
 import os
 from utils import *
 
+# stream_list = show_xdf_data("t_t_1/1/labrecorder/%r")
 stream_list = show_xdf_data("%r")
 
 
