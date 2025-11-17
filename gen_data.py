@@ -60,24 +60,28 @@ class SignalGen():
         start_time = local_clock()
         if signal is not None:
             for val in signal:
-                print(f"sending {val} from {info.name()}")
+                # print(f"sending {val} from {info.name()}")
                 if if_delay:
                     sample_time = (local_clock() - start_time)*(1+self.delay)
+                    print(f"Delayed time: {sample_time}")
                 else:
                     sample_time = local_clock() - start_time
                 outlet.push_sample([val], sample_time)
                 time.sleep(1/freq)
         else:
             self.running = True
+            # this doesn't work as intended
             while self.running:
-                if if_delay:
-                    sample_time = time.time() + self.delay
-                    self.delay+=self.delay
-                else:
-                    sample_time = time.time()
-                y = np.sin(2*np.pi*sample_time)
-                outlet.push_sample([y], sample_time)
-                time.sleep(1/freq)
+                x_range = np.linspace(-np.pi, np.pi, freq*self.duration)
+                signal = np.sin(x_range)
+                for y in signal:
+                    if if_delay:
+                        sample_time = (local_clock() - start_time)*(1+self.delay)
+                    else:
+                        sample_time = local_clock() - start_time
+                        print(f"Sending delayed response {y}")
+                    outlet.push_sample([y], sample_time)
+                    time.sleep(1/freq)
             print("running was set to False")
 
 

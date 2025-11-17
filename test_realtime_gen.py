@@ -7,23 +7,17 @@ delay = 0.01
 
 def build_signal(data, timestamps, freq, duration, delay, is_delay):
     start = time.time()
-    sample_time = start
-    offset = 0 # delay from previous iteration
-    while sample_time - start < 30: # lab recording duration
+    sample_time = 0
+    while sample_time < 30: # lab recording duration
         x_range = np.linspace(-np.pi, np.pi, freq*duration)
         signal = np.sin(x_range)
-        delay = 0.01
         for y in signal:
             if not is_delay:
                 sample_time = time.time() - start
             else:
-                sample_time = time.time() - start + delay + offset
-                delay+=delay
-                print(delay)
-                if y == signal[-1]:
-                    offset = delay
+                sample_time = (time.time() - start)*(1+delay)
+                print(sample_time)
             timestamps.append(sample_time)
-            # print(f"Sending {y}")
             data.append(y)
             time.sleep(1/freq)
 
