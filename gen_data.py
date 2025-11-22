@@ -35,6 +35,9 @@ class SignalGen():
         self.thread1:threading.Thread = None
         self.thread2:threading.Thread = None
 
+        self.y1_outlet: StreamOutlet = None
+        self.y2_outlet: StreamOutlet = None
+
         self.lab_recorder:socket = labrecorder
         self.running = False # running condition for app integration
 
@@ -98,8 +101,8 @@ class SignalGen():
         return outlet
 
     def sendData(self, name1, name2, type="EEG"):
-        y1_outlet = self.createOutlet(name1, type, self.freq1)
-        y2_outlet = self.createOutlet(name2, type, self.freq2)
+        self.y1_outlet = self.createOutlet(name1, type, self.freq1)
+        self.y2_outlet = self.createOutlet(name2, type, self.freq2)
 
         y1, y2 = self.constructSignal()
 
@@ -108,8 +111,8 @@ class SignalGen():
 
         # print(y2_samples[0].shape)
 
-        self.thread1 = threading.Thread(target=self.push2inlet, args=(y1_outlet, y1, self.freq1))
-        self.thread2 = threading.Thread(target=self.push2inlet, args=(y2_outlet, y2, self.freq2, True))
+        self.thread1 = threading.Thread(target=self.push2inlet, args=(self.y1_outlet, y1, self.freq1))
+        self.thread2 = threading.Thread(target=self.push2inlet, args=(self.y2_outlet, y2, self.freq2, True))
 
         if self.lab_recorder is None:
             self.lab_recorder = socket.create_connection(("localhost", 22345))
@@ -127,13 +130,16 @@ class SignalGen():
             self.stopData()
 
     def stopData(self):
+        self.running = False
         self.thread1.join()
         self.thread2.join()
         print("Threads finished their job")
         self.lab_recorder.sendall(b"stop\n")
         time.sleep(5.0) # delay for graceful exit
         self.lab_recorder.sendall(b"select none\n")
-        self.lab_recorder.close()
+        if __name__ == "__main__":
+            print("Closing connection")
+            self.lab_recorder.close()
 
 
 if __name__ == "__main__":

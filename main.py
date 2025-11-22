@@ -161,14 +161,6 @@ class MainWindow(tk.Tk):
             self.thread.join(timeout=2)
         self.running = False
 
-    def set_port(self):
-        val = self.port_combo.get()
-        if val:
-            self.COM_port = int(val)
-            self.update_COM_label()
-        else:
-            messagebox.showwarning("No Selection", "Please select a COM port from the list.")
-
     def set_selected_part(self):
         val = self.parts_combo.get()
         if val:
@@ -191,15 +183,17 @@ class MainWindow(tk.Tk):
     def update_parts_label(self):
         self.lbl_part_status.config(text=f"Current Part: {self.parts}")
         self.lbl_run_status.config(text=f"Current Run: {self.run_no}")
-        
-        pat_text = f"{self.name} {self.surname} ({self.age})" if self.name else "No Patient Selected"
+        if self.name:
+            pat_text = f"{self.name} {self.surname} ({self.age})"  
+        else: 
+            pat_text = "No Patient Selected"
         self.info_label.config(text=pat_text)
-        
         self.lbl_active_status.config(text=f"Is Running: {self.running}", foreground="green" if self.running else "red")
 
     def update_COM_label(self):
         self.port_info.config(text=f"COM Port: COM{self.COM_port}")
 
+    # Messages and warnings
     def _patient_selection_(self, text=''):
         messagebox.showinfo("Selection Info", f"Patient {text} selected.")
 
@@ -262,7 +256,6 @@ class MainWindow(tk.Tk):
 
     def _type_run_(self):
         run_input = tk.simpledialog.askinteger("Run Number", f"Current Part: {self.parts}\nEnter Run Number:", parent=self, minvalue=1)
-        
         if run_input is not None:
             self.run_no = run_input
             self.set_lab_dir(self.run_no)
@@ -272,6 +265,15 @@ class MainWindow(tk.Tk):
 
     def _wrong_port_(self):
         messagebox.showerror("Connection Error", f"Could not connect to COM{self.COM_port}")
+
+    # Buttons
+    def set_port(self):
+        val = self.port_combo.get()
+        if val:
+            self.COM_port = int(val)
+            self.update_COM_label()
+        else:
+            messagebox.showwarning("No Selection", "Please select a COM port from the list.")
 
     def res_pat(self):
         if not self.sel_pat:
@@ -334,6 +336,7 @@ class MainWindow(tk.Tk):
         self.age = None
         self.update_parts_label()
         self._type_data_()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='App args')
