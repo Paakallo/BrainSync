@@ -1,3 +1,4 @@
+import subprocess
 import tkinter as tk
 from tkinter import messagebox
 import tkinter.simpledialog
@@ -346,6 +347,26 @@ if __name__ == "__main__":
 
     use_lab = bool(args.use_lab)
     use_sim = bool(args.use_sim)
+    lab_proc = None
+
+    if use_lab:
+        try:
+            print("Launching LabRecorder...")
+            lab_proc = subprocess.Popen(["LabRecorder"])
+            time.sleep(2) 
+        except FileNotFoundError:
+            print("Warning: 'LabRecorder' command not found in PATH. Please start it manually.")
+        except Exception as e:
+            print(f"Error starting LabRecorder: {e}")
 
     app = MainWindow(use_lab, use_sim)
     app.mainloop()
+
+    if lab_proc:
+        print("Terminating LabRecorder...")
+        lab_proc.terminate()
+        try:
+            lab_proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            print("Force killing LabRecorder...")
+            lab_proc.kill()
