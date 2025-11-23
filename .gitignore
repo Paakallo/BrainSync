@@ -1,10 +1,10 @@
 .idea/
 .vscode/
 .venv/
-test/
 **/__pycache__/**
+
+LabRecorder.cfg
 patients.json
 data/
-
 temp/
 thesis/
