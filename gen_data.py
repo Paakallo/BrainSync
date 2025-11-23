@@ -1,148 +1,137 @@
-#TODO:
-# generate two sinuses: 256 Hz and 1 Hz (maybe selection of freq?)
-# add controllable noise
-
-# application:
-# LabRecorder frontend:
-## Select 2 EEG device
-# figure out how to synchronize two signal (marker-based?)
-## embed it to labreacorder
-## figure it out somehow, how to synchronize
-
-
-### Links and sources
-# good example of sine generator
-# https://towardsdatascience.com/use-classes-for-generating-signals-6694d22e9a80/
-#
-#
-
 import socket
 import time
-from matplotlib import pyplot as plt
 import numpy as np
 from pylsl import StreamInfo, StreamOutlet, local_clock
 import uuid
 import threading
 
 class SignalGen():
-
-    def __init__(self, freq1, freq2, duration=0, labrecorder=None):
+    def __init__(self, freq1, freq2, labrecorder=None):
         self.freq1 = freq1
         self.freq2 = freq2
-        self.duration = duration
-        self.delay = 0.1 # seconds
+        self.delay = 0.1 
         
-        self.thread1:threading.Thread = None
-        self.thread2:threading.Thread = None
+        self.thread1 = None
+        self.thread2 = None
+        self.running = False
+        
+        self.lab_recorder = labrecorder
 
-        self.y1_outlet: StreamOutlet = None
-        self.y2_outlet: StreamOutlet = None
+    def _generate_pink_noise(self, samples):
+        if samples <= 0: return np.array([])
+        state = np.random.randn(samples)
+        pink = np.cumsum(state) 
+        pink = pink - np.mean(pink)
+        return pink / (np.std(pink) + 1e-5)
 
-        self.lab_recorder:socket = labrecorder
-        self.running = False # running condition for app integration
+    def _generate_eeg_chunk(self, n_samples, fs, time_offset):
+        if n_samples <= 0: return np.array([])
+        
+        t = (np.arange(n_samples) + time_offset) / fs
+        background = self._generate_pink_noise(n_samples) * 2.0
+        # For 1Hz, we just use a slow sine wave
+        alpha = np.sin(2 * np.pi * 0.1 * t) * 5.0 
+        noise = np.random.randn(n_samples) * 0.1
+        
+        data = (background + alpha + noise).astype(np.float32)
+        # CRITICAL FIX 1: Reshape to (Samples, Channels)
+        return data.reshape(-1, 1)
 
-    def constructNoise(self, y1:np.array, y2:np.array):
-        # eye blink, muscle movement, white noise
-        return y1, y2
-
-    def filterSignal(self):
-        pass
-
-    def constructSignal(self):
-        if self.duration == 0:
-            print("duration is zero, couldn't construct signals")
-            return None, None
-        x1 = np.linspace(-np.pi, np.pi, self.freq1*self.duration)
-        x2 = np.linspace(-np.pi, np.pi, self.freq2*self.duration)
-        y1 = np.sin(x1)
-        y2 = np.sin(x2)
-        return y1, y2
-
-    def push2inlet(self, outlet:StreamOutlet, signal:list[np.array], freq:int, if_delay:bool=False):
-        info = outlet.get_info()
+    def _stream_process(self, outlet, freq, if_delay=False):
+        sample_counter = 0
         start_time = local_clock()
-        if signal is not None:
-            for val in signal:
-                # print(f"sending {val} from {info.name()}")
-                if if_delay:
-                    sample_time = (local_clock() - start_time)*(1+self.delay)
-                    print(f"Delayed time: {sample_time}")
-                else:
-                    sample_time = local_clock() - start_time
-                outlet.push_sample([val], sample_time)
-                time.sleep(1/freq)
-        else:
-            self.running = True
-            # this doesn't work as intended
-            while self.running:
-                x_range = np.linspace(-np.pi, np.pi, freq*self.duration)
-                signal = np.sin(x_range)
-                for y in signal:
-                    if if_delay:
-                        sample_time = (local_clock() - start_time)*(1+self.delay)
-                    else:
-                        sample_time = local_clock() - start_time
-                        print(f"Sending delayed response {y}")
-                    outlet.push_sample([y], sample_time)
-                    time.sleep(1/freq)
-            print("running was set to False")
+        
+        # Calculate chunk size
+        target_dt = 0.1 
+        chunk_size = int(freq * target_dt)
+        if chunk_size < 1: 
+            chunk_size = 1 # Force at least 1 sample (Essential for 1 Hz)
+            
+        chunk_duration = chunk_size / freq
 
+        while self.running:
+            # 1. Generate Data
+            chunk = self._generate_eeg_chunk(chunk_size, freq, sample_counter)
+            sample_counter += chunk_size
 
-    def divideChunks(self, signal:np.array, freq:int):
-        samples: list[np.array] = []
-        for i in range(self.duration):
-            sample = signal[i:i+freq]
-            samples.append(sample)
-        return samples
+            # 2. Timestamping
+            now = local_clock()
+            if if_delay:
+                push_time = now + (now - start_time) * self.delay
+            else:
+                push_time = now
 
-    def createOutlet(self, name:str, type:str, freq:int):
+            # 3. Push Chunk
+            # LSL buffers this. If Recorder starts 0.5s later, 
+            # it will still catch this sample from the buffer.
+            outlet.push_chunk(chunk, push_time)
+
+            # 4. Sleep
+            time.sleep(chunk_duration)
+
+    def createOutlet(self, name, type, freq):
+        # Explicitly setting channel_count=1
         info = StreamInfo(name, type, 1, freq, "float32", str(uuid.uuid1()))
-        outlet = StreamOutlet(info)
-        return outlet
+        return StreamOutlet(info)
 
     def sendData(self, name1, name2, type="EEG"):
+        if self.running: 
+            return
+
+        print(f"Starting Simulation: {name1} ({self.freq1}Hz), {name2} ({self.freq2}Hz)")
+        
+        # 1. Create Outlets
         self.y1_outlet = self.createOutlet(name1, type, self.freq1)
         self.y2_outlet = self.createOutlet(name2, type, self.freq2)
+        
+        self.running = True
 
-        y1, y2 = self.constructSignal()
-
-        # print("y1_sample length: ", len(y1_samples))
-        # print("y2_sample length: ", len(y2_samples))
-
-        # print(y2_samples[0].shape)
-
-        self.thread1 = threading.Thread(target=self.push2inlet, args=(self.y1_outlet, y1, self.freq1))
-        self.thread2 = threading.Thread(target=self.push2inlet, args=(self.y2_outlet, y2, self.freq2, True))
-
-        if self.lab_recorder is None:
-            self.lab_recorder = socket.create_connection(("localhost", 22345))
-        self.lab_recorder.sendall(b"update\n")
-        self.lab_recorder.sendall(b"select all\n")
-
-        if self.duration != 0:
-            answer = input("Press enter to start recording...")
-        self.lab_recorder.sendall(b"start\n")
-        time.sleep(5.0) # delay for graceful start            
+        # 2. START THREADS IMMEDIATELY (CRITICAL FIX 2)
+        # We start pushing data *before* telling LabRecorder to record.
+        # This ensures the LSL buffer has data waiting when LabRecorder connects.
+        self.thread1 = threading.Thread(target=self._stream_process, 
+                                      args=(self.y1_outlet, self.freq1, False), 
+                                      daemon=True)
+        self.thread2 = threading.Thread(target=self._stream_process, 
+                                      args=(self.y2_outlet, self.freq2, True), 
+                                      daemon=True)
         self.thread1.start()
         self.thread2.start()
-        # data recording is stopped externally
-        if self.duration != 0:
-            self.stopData()
+
+        # 3. Handle LabRecorder
+        if self.lab_recorder:
+            try:
+                # Give LSL a moment to advertise the streams on the network
+                print("Waiting for streams to advertise...")
+                time.sleep(1.0) 
+                
+                print("Triggering LabRecorder...")
+                self.lab_recorder.sendall(b"update\n")
+                time.sleep(0.5) # Wait for update to process
+                self.lab_recorder.sendall(b"select all\n")
+                time.sleep(0.1)
+                self.lab_recorder.sendall(b"start\n")
+                print("LabRecorder Started.")
+            except Exception as e:
+                print(f"LabRecorder Error: {e}")
 
     def stopData(self):
-        self.running = False
-        self.thread1.join()
-        self.thread2.join()
-        print("Threads finished their job")
-        self.lab_recorder.sendall(b"stop\n")
-        time.sleep(5.0) # delay for graceful exit
-        self.lab_recorder.sendall(b"select none\n")
-        if __name__ == "__main__":
-            print("Closing connection")
-            self.lab_recorder.close()
+        if not self.running:
+            return
 
+        print("Stopping Simulation...")
+        
+        # Stop Recorder FIRST so we don't cut off the end of the stream
+        if self.lab_recorder:
+            try:
+                self.lab_recorder.sendall(b"stop\n")
+            except:
+                pass
 
-if __name__ == "__main__":
-    gen = SignalGen(1, 256, 10)
-    gen.sendData("stream_1_Hz", "stream_256_Hz")
-
+        time.sleep(0.5) # Allow recorder to finalize file
+        self.running = False 
+        
+        if self.thread1: self.thread1.join(timeout=1.0)
+        if self.thread2: self.thread2.join(timeout=1.0)
+        
+        print("Simulation Stopped.")

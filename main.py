@@ -48,7 +48,7 @@ class MainWindow(tk.Tk):
                 messagebox.showerror("Error", "Could not connect to LabRecorder (localhost:22345)")
 
         if self.use_sim:
-            self.exper = SignalGen(1, 256, 0, self.lab_recorder)
+            self.exper = SignalGen(1, 256, self.lab_recorder)
 
         # ================= GUI LAYOUT =================
 
