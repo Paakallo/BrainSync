@@ -4,9 +4,9 @@ import numpy as np
 import argparse
 import os
 
-def load_and_plot_xdf(file_name):
-    dir_path = os.getcwd()
-    filename = os.path.join(dir_path, "data", f"{file_name}.xdf")
+def load_and_plot_xdf(filename):
+    # dir_path = os.getcwd()
+    # filename = os.path.join(dir_path, "data", f"{file_name}.xdf")
     if not os.path.exists(filename):
         print(f"Error: File '{filename}' not found.")
         return
@@ -73,5 +73,8 @@ def load_and_plot_xdf(file_name):
     plt.show()
 
 if __name__ == "__main__":
-    load_and_plot_xdf("%r")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("file", nargs='?', help="Path to XDF file")
+    args = parser.parse_args()
+    load_and_plot_xdf(args.file)
     

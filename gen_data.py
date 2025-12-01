@@ -14,7 +14,10 @@ class SignalGen():
         self.thread1 = None
         self.thread2 = None
         self.running = False
+
         self.lab_recorder = labrecorder
+        self.y1_outlet : StreamOutlet = None
+        self.y2_outlet : StreamOutlet = None
 
     def _get_signal_value_at_t(self, t_vector):
         sig = np.sin(2 * np.pi * 0.1 * t_vector) * 10.0
@@ -52,20 +55,23 @@ class SignalGen():
         return StreamOutlet(info)
 
     def sendData(self, name1, name2, type="EEG"):
-        self.y1_outlet = self.createOutlet(name1, type, self.freq1)
-        self.y2_outlet = self.createOutlet(name2, type, self.freq2)
+        if self.y1_outlet is None and self.y2_outlet is None:
+            self.y1_outlet = self.createOutlet(name1, type, self.freq1)
+            self.y2_outlet = self.createOutlet(name2, type, self.freq2)
         self.running = True
-
-        self.thread1 = threading.Thread(target=self._stream_process, args=(self.y1_outlet, self.freq1, False), daemon=True)
-        self.thread2 = threading.Thread(target=self._stream_process, args=(self.y2_outlet, self.freq2, True), daemon=True)
-        self.thread1.start()
-        self.thread2.start()
 
         time.sleep(1.0)
         self.lab_recorder.sendall(b"update\n")
         time.sleep(0.5)
         self.lab_recorder.sendall(b"select all\n")
         time.sleep(0.2)
+
+        self.thread1 = threading.Thread(target=self._stream_process, args=(self.y1_outlet, self.freq1, False), daemon=True)
+        self.thread2 = threading.Thread(target=self._stream_process, args=(self.y2_outlet, self.freq2, True), daemon=True)
+        self.thread1.start()
+        self.thread2.start()
+
+        
         self.lab_recorder.sendall(b"start\n")
         print("LabRecorder triggered.")
 
