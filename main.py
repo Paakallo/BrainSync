@@ -39,6 +39,7 @@ class MainWindow(tk.Tk):
         self.running = False
         self.COM_port = None
 
+        # Ensure the data folder exists
         if not os.path.exists('data'):
             os.mkdir('data')
 
@@ -121,6 +122,27 @@ class MainWindow(tk.Tk):
         self.lbl_sync_status.grid(row=4, column=0, sticky="w", padx=10, pady=2)
 
     # ================= LOGIC =================
+
+    def toggle_ui_state(self, is_recording):
+        """
+        Disables or enables UI components based on recording state.
+        If is_recording is True, everything except STOP is disabled.
+        """
+        state = "disabled" if is_recording else "normal"
+        
+        # Disable/Enable Patient Controls
+        self.select_button.config(state=state)
+        self.unset_button.config(state=state)
+        
+        # Disable/Enable Configuration
+        self.port_combo.config(state=state)
+        self.confirm_port_button.config(state=state)
+        self.parts_combo.config(state=state)
+        self.confirm_parts_button.config(state=state)
+        self.rem_part_button.config(state=state)
+        
+        # Disable/Enable Start Button
+        self.start_button.config(state=state)
 
     def send_msg(self, msg: str):
         if self.use_lab and self.lab_recorder:
@@ -216,6 +238,7 @@ class MainWindow(tk.Tk):
             if self.name and self.surname and self.age:
                 try:
                     int(self.age)
+                    # Note: assuming add_patient is in utils
                     try:
                         exists = not add_patient(self.name, self.surname, self.age)
                     except NameError:
@@ -302,6 +325,7 @@ class MainWindow(tk.Tk):
         self.sel_pat = False
         self.update_parts_label()
 
+    # --- Recording & Processing Logic ---
     
     def select_patient(self):
         if self.sel_pat:
@@ -325,6 +349,10 @@ class MainWindow(tk.Tk):
                 print("Connecting...")
                 self.send_start()
                 self.running = True
+                
+                # --- Lock the UI ---
+                self.toggle_ui_state(True)
+                
                 self.update_parts_label()
                 self.lbl_sync_status.config(text="Sync Status: Recording...")
                    
@@ -342,25 +370,32 @@ class MainWindow(tk.Tk):
                 except NameError: pass 
 
             self.update_parts_label()
+            
+            # --- Unlock the UI ---
+            self.toggle_ui_state(False)
+            
+            # Trigger Post-Processing
             if self.use_lab:
                 threading.Thread(target=self._wait_and_process, daemon=True).start()
 
     def _wait_and_process(self):
         """
-        Calculates expected file path, waits for it to exist, and runs sync.
+        Calculates expected file path in the DATA folder, waits for it, and runs sync.
         """
         self.lbl_sync_status.config(text="Sync Status: Waiting for file...", foreground="orange")
+        
         part_str = self.get_participant_str()
         expected_path = os.path.join(
-            os.getcwd(),
+            os.getcwd(), 
             "data", 
             part_str, 
             str(self.parts), 
             "labrecorder", 
             f"{self.run_no}.xdf"
         )
-
         print(f"Looking for: {expected_path}")
+
+        # Wait loop (max 10 seconds)
         found = False
         for _ in range(20):
             if os.path.exists(expected_path):
@@ -371,6 +406,7 @@ class MainWindow(tk.Tk):
         if found:
             self.lbl_sync_status.config(text="Sync Status: Processing...", foreground="blue")
             try:
+                # Call the function from the other file
                 csv_out = sync_post_process.process_and_save(expected_path)
                 if csv_out:
                     self.lbl_sync_status.config(text="Sync Status: Saved CSV", foreground="green")
