@@ -380,10 +380,10 @@ class MainWindow(tk.Tk):
 
     def _wait_and_process(self):
         """
-        Calculates expected file path in the DATA folder, waits for it, and runs sync.
+        Calculates expected file path in the DATA folder, waits for it, runs sync,
+        and updates patients.json.
         """
         self.lbl_sync_status.config(text="Sync Status: Waiting for file...", foreground="orange")
-        
         part_str = self.get_participant_str()
         expected_path = os.path.join(
             os.getcwd(), 
@@ -394,7 +394,6 @@ class MainWindow(tk.Tk):
             f"{self.run_no}.xdf"
         )
         print(f"Looking for: {expected_path}")
-
         # Wait loop (max 10 seconds)
         found = False
         for _ in range(20):
@@ -402,14 +401,17 @@ class MainWindow(tk.Tk):
                 found = True
                 break
             time.sleep(0.5)
-
         if found:
             self.lbl_sync_status.config(text="Sync Status: Processing...", foreground="blue")
             try:
-                # Call the function from the other file
                 csv_out = sync_post_process.process_and_save(expected_path)
                 if csv_out:
                     self.lbl_sync_status.config(text="Sync Status: Saved CSV", foreground="green")
+                    success = add_run_path(self.name, self.surname, self.age, self.parts, self.run_no, csv_out)
+                    if success:
+                        print(f"[System] Successfully logged Run {self.run_no} to patients.json")
+                    else:
+                        print("[System] Failed to update patients.json")
                 else:
                     self.lbl_sync_status.config(text="Sync Status: Error in Sync", foreground="red")
             except Exception as e:

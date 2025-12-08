@@ -9,8 +9,6 @@ import os
 import json
 import sys
 import time
-# from datetime import datetime
-
 
 ### STOP functions
 def save_data(data, part:int, filename):
@@ -24,22 +22,14 @@ def save_data(data, part:int, filename):
         'low_gamma', 'high_gamma'
     ])
 
-    # df['timestamp'] = df['timestamp'] - df.loc[0, 'timestamp']
-
-    # if not os.path.exists(f'{name}{surname}{age}'):    
-    # 	os.mkdir(f'{name}{surname}{age}')
-
     file_index = check_file(part, filename)
     df.to_csv(f'{filename}/{part}/mindflex/{part}_{file_index}.csv', index=False)
-    # plot_eeg_data(df, part, file_index)
-
 
 def check_file(part, filename):
     file_index = 1
     while os.path.exists(f'{filename}/{part}/mindflex/{part}_{file_index}.csv'):
         file_index += 1
     return file_index
-
 
 def check_patient(name, surname, age, pat_list): 
     for pat in pat_list:
@@ -51,10 +41,8 @@ def add_patient(name, surname, age):
     if not os.path.exists("patients.json"):
         with open("patients.json", "w") as file:
             json.dump([],file)
-
     with open("patients.json", "r") as file:
         pat_list = json.load(file)
-    
     if check_patient(name,surname,age,pat_list):
         return False
     else:
@@ -74,7 +62,6 @@ def add_patient(name, surname, age):
             "part_3": []
         }
         pat_list.append(person)
-
         with open("patients.json", "w") as file:
             json.dump(pat_list, file)
         return True
@@ -93,7 +80,6 @@ def load_patient(name,surname,age):
 def update_patient(name,surname,age,part_no):
     with open("patients.json", "r") as file:
         pat_list = json.load(file)
-
     for pat in pat_list:
         if pat['Name'] == name and pat['Surname'] == surname and pat['Age'] == age:
             pat['part_no'] = part_no
@@ -104,7 +90,6 @@ def update_patient(name,surname,age,part_no):
 def reset_patient(name,surname,age):
     with open("patients.json", "r") as file:
         pat_list = json.load(file)
-
     for pat in pat_list:
         if pat['Name'] == name and pat['Surname'] == surname and pat['Age'] == age:
             pat['part_no'] = 0
@@ -121,7 +106,6 @@ def reset_patient(name,surname,age):
 def remove_patient(name,surname,age):
     with open("patients.json", "r") as file:
         pat_list = json.load(file)
-
     for pat in pat_list:
         if pat['Name'] == name and pat['Surname'] == surname and pat['Age'] == age:
             pat_list.remove(pat)
@@ -134,17 +118,13 @@ def remove_patient(name,surname,age):
 def remove_part(name,surname,age, part):
     with open("patients.json", "r") as file:
         pat_list = json.load(file)
-
     for pat in pat_list:
         if pat['Name'] == name and pat['Surname'] == surname and pat['Age'] == age:
-            #pat_list.remove(pat)
-            #TODO: remove part in json
             path = os.path.join("data", f"{name}_{surname}_{age}", f"{part}")
             os.remove(path) 
             break
     with open("patients.json", "w") as file:
             json.dump(pat_list, file)
-
 
 def connect2headset(port="COM5"):
     if sys.platform == 'linux':
@@ -166,3 +146,34 @@ def connect2headset(port="COM5"):
             bytesize=serial.SEVENBITS
         )
     return serial_connection
+
+def add_run_path(name, surname, age, part_no, run_no, file_path):
+    """
+    Appends the run number and file path to the specific part list in patients.json.
+    """
+    json_path = "patients.json"
+    if not os.path.exists(json_path):
+        return False
+    with open(json_path, "r") as file:
+        pat_list = json.load(file)
+    found = False
+    for pat in pat_list:
+        if pat['Name'] == str(name) and pat['Surname'] == str(surname) and pat['Age'] == str(age):
+            part_key = f"part_{part_no}"
+            if part_key not in pat:
+                pat[part_key] = []
+            new_record = {
+                "run": run_no,
+                "path": file_path,
+                "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            pat[part_key].append(new_record)
+            found = True
+            break
+    if found:
+        with open(json_path, "w") as file:
+            json.dump(pat_list, file, indent=4)
+        return True
+    else:
+        print(f"[JSON] Error: Patient {name} {surname} not found.")
+        return False
