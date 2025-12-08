@@ -63,7 +63,7 @@ def load_and_plot_xdf(filename):
             axes[i].set_ylabel(f"{name}")
 
         # Add title details
-        axes[i].set_title(f"Stream {i+1}: {name} ({stype}) - {srate} Hz", loc='left', fontsize=10)
+        axes[i].set_title(f"Stream {i+1}: {srate} Hz", loc='left', fontsize=10)
         axes[i].grid(True, alpha=0.3)
 
     # Label the bottom x-axis
