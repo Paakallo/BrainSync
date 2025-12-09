@@ -93,16 +93,6 @@ class Brain:
         """
         Read data from the serial port and process incoming packets.
         """
-        # global packet_buffer, previous_byte, current_byte, is_packet_in_progress, packet_length, continue_running
-
-        # Initialize serial port
-        # serial_connection = serial.Serial(
-        #     port=com_port,
-        #     baudrate=9600,
-        #     parity=serial.PARITY_NONE,
-        #     stopbits=serial.STOPBITS_ONE,
-        #     bytesize=serial.SEVENBITS
-        # )
 
         self.serial_connection.isOpen()
         print("self.serial_connection.isOpen()")

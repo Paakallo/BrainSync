@@ -12,7 +12,6 @@ import argparse
 import os
 import time
 
-# Import the processing module
 import sync_post_process
 
 class MainWindow(tk.Tk):
@@ -53,11 +52,11 @@ class MainWindow(tk.Tk):
         if self.use_sim:
             self.exper = SignalGen(1, 256, self.lab_recorder)
 
-        # ================= GUI LAYOUT =================
+        # GUI layout
         main_frame = ttk.Frame(self, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # --- Section 1: Patient Management ---
+        # Section 1: Patient Management
         patient_frame = ttk.LabelFrame(main_frame, text="Patient Management", padding="10")
         patient_frame.grid(row=0, column=0, sticky="ew", pady=(0, 15))
         main_frame.columnconfigure(0, weight=1)
@@ -73,7 +72,7 @@ class MainWindow(tk.Tk):
         patient_frame.columnconfigure(0, weight=1)
         patient_frame.columnconfigure(1, weight=1)
 
-        # --- Section 2: Configuration ---
+        # Section 2: Configuration
         config_frame = ttk.LabelFrame(main_frame, text="Configuration", padding="10")
         config_frame.grid(row=1, column=0, sticky="ew", pady=(0, 15))
         config_frame.columnconfigure(1, weight=1)
@@ -93,7 +92,7 @@ class MainWindow(tk.Tk):
         self.rem_part_button = ttk.Button(config_frame, text="Remove Last Part", command=self.rem_part)
         self.rem_part_button.grid(row=2, column=0, columnspan=3, pady=(10, 0), sticky="ew")
 
-        # --- Section 3: Recording Controls ---
+        # Section 3: Recording Controls
         control_frame = ttk.LabelFrame(main_frame, text="Recording Control", padding="10")
         control_frame.grid(row=2, column=0, sticky="ew", pady=(0, 15))
         control_frame.columnconfigure(0, weight=1)
@@ -105,7 +104,7 @@ class MainWindow(tk.Tk):
         self.stop_button = ttk.Button(control_frame, text="STOP", command=self.stop_record)
         self.stop_button.grid(row=0, column=1, ipady=15, padx=5, sticky="ew")
 
-        # --- Section 4: Status Monitor ---
+        # Section 4: Status Monitor
         status_frame = ttk.LabelFrame(main_frame, text="System Status", padding="10")
         status_frame.grid(row=3, column=0, sticky="nsew")
         main_frame.rowconfigure(3, weight=1)
@@ -120,8 +119,6 @@ class MainWindow(tk.Tk):
         self.port_info.grid(row=3, column=0, sticky="w", padx=10, pady=2)
         self.lbl_sync_status = ttk.Label(status_frame, text="Sync Status: Idle")
         self.lbl_sync_status.grid(row=4, column=0, sticky="w", padx=10, pady=2)
-
-    # ================= LOGIC =================
 
     def toggle_ui_state(self, is_recording):
         """
@@ -145,6 +142,9 @@ class MainWindow(tk.Tk):
         self.start_button.config(state=state)
 
     def send_msg(self, msg: str):
+        """
+        send message to LabRecorder instance     
+        """
         if self.use_lab and self.lab_recorder:
             try:
                 self.lab_recorder.sendall(msg)
@@ -432,9 +432,9 @@ if __name__ == "__main__":
     use_sim = bool(args.use_sim)
     lab_proc = None
 
+    # LabRecorder process is needed for LSL integration
     if use_lab:
         try:
-            print("Launching LabRecorder...")
             lab_proc = subprocess.Popen(["LabRecorder"])
             time.sleep(2) 
         except FileNotFoundError:

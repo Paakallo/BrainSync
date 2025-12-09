@@ -10,7 +10,6 @@ import json
 import sys
 import time
 
-### STOP functions
 def save_data(data, part:int, filename):
     """
     Save the collected EEG data to a CSV file and plot the data.

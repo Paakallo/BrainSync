@@ -10,14 +10,12 @@ def sync_signals(file_name, plot_result=True):
     """
     Loads XDF, synchronizes signals via interpolation, and returns the data.
     """
-    print(f"[Sync] Loading {file_name}...")
     try:
         streams, header = pyxdf.load_xdf(file_name)
     except Exception as e:
         print(f"[Sync] Error loading XDF: {e}")
         return None, None, None
 
-    # Identify streams based on sampling rate
     if len(streams) < 2:
         print("[Sync] Error: Less than 2 streams found in XDF.")
         return None, None, None
@@ -32,29 +30,22 @@ def sync_signals(file_name, plot_result=True):
     if idx_fast == idx_slow: 
         idx_slow = 1 - idx_fast
 
-    print(f"[Sync] Reference (Fast): {names[idx_fast]} ({srates[idx_fast]} Hz)")
-    print(f"[Sync] Interpolating (Slow): {names[idx_slow]} ({srates[idx_slow]} Hz)")
-
-    # Extract data
     t_fast = streams[idx_fast]['time_stamps']
     y_fast = streams[idx_fast]['time_series'][:, 0]
 
     t_slow = streams[idx_slow]['time_stamps']
     y_slow = streams[idx_slow]['time_series'][:, 0]
 
-    # Interpolation
-    # We interpolate the Slow signal onto the Fast signal's time grid
     f = interp1d(t_slow, y_slow, kind='linear', fill_value="extrapolate")
     y_slow_resampled = f(t_fast)
 
-    # Plotting (Optional)
     if plot_result:
         plot_time = t_fast - t_fast[0]
         plt.figure(figsize=(10, 6))
         plt.title("Synchronization Result")
         plt.plot(plot_time, y_fast, label=f"Fast ({names[idx_fast]})", color='blue', alpha=0.6)
         plt.plot(plot_time, y_slow_resampled, label=f"Slow Interpolated ({names[idx_slow]})", color='red', alpha=0.8, linestyle='--')
-        plt.scatter(t_slow - t_fast[0], y_slow, color='black', marker='x', label="Original Slow Pts")
+        # plt.scatter(t_slow - t_fast[0], y_slow, color='black', marker='x', label="Slow Signal")
         plt.legend()
         plt.tight_layout()
         plt.show()

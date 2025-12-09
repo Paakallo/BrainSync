@@ -23,7 +23,7 @@ class SignalGen():
         sig = np.sin(2 * np.pi * 0.1 * t_vector) * 10.0
         sig += np.sin(2 * np.pi * 0.23 * t_vector) * 2.0 
         marker_mask = (t_vector % 10.0) < 1.0
-        sig[marker_mask] += 30.0
+        sig[marker_mask] += 30.0 # add artificial marker for future synchronization
         return sig.astype(np.float32).reshape(-1, 1)
 
     def _stream_process(self, outlet, freq, is_drifting=False):
