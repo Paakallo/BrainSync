@@ -11,7 +11,6 @@ import socket
 import argparse
 import os
 import time
-
 import sync_post_process
 
 class MainWindow(tk.Tk):
@@ -169,7 +168,7 @@ class MainWindow(tk.Tk):
             self.exper.stopData()
         else:
             self.exper.continue_running = False
-            self.data = self.exper.stop_serial_data()
+            self.exper.stop_serial_data()
             self.send_msg(b"stop\n")
             self.thread.join(timeout=2)
         self.running = False
@@ -359,21 +358,11 @@ class MainWindow(tk.Tk):
     def stop_record(self):
         if not self.sel_pat:
             return
-
         if self.running:
             print("Shutting down connection") 
             self.send_stop()
-            
-            if not self.use_sim:
-                try:
-                    save_data(self.data, self.parts)
-                except NameError: pass 
-
             self.update_parts_label()
-            
-            # --- Unlock the UI ---
             self.toggle_ui_state(False)
-            
             # Trigger Post-Processing
             if self.use_lab:
                 threading.Thread(target=self._wait_and_process, daemon=True).start()
@@ -394,7 +383,7 @@ class MainWindow(tk.Tk):
             f"{self.run_no}.xdf"
         )
         print(f"Looking for: {expected_path}")
-        # Wait loop (max 10 seconds)
+        # wait loop
         found = False
         for _ in range(20):
             if os.path.exists(expected_path):
