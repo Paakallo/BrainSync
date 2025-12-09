@@ -1,262 +1,305 @@
+import subprocess
 import tkinter as tk
 from tkinter import messagebox
-from tkinter import dialog
+import tkinter.simpledialog
+from tkinter import ttk
 from brain import Brain
 from utils import *
+from gen_data import SignalGen
 import threading
 import socket
-
+import argparse
+import os
+import time
+import sync_post_process
 
 class MainWindow(tk.Tk):
-    def __init__(self):
+    def __init__(self, use_lab: bool, use_sim: bool):
         super().__init__()
-        self.title("BrainSync")
-        self.geometry("1000x1000")
+        self.title("BrainSync Recorder")
+        self.geometry("600x650") 
+        style = ttk.Style()
+        style.theme_use('clam')
 
-        self.start_button = tk.Button(self, text="Start", command=self.start_record)
-        self.start_button.pack()
-
-        self.stop_button = tk.Button(self, text="Stop", command=self.stop_record)
-        self.stop_button.pack()
-
-        self.continue_button = tk.Button(self, text="Abort", command=self.abort_record)
-        self.continue_button.pack()
-
-        self.select_button = tk.Button(self, text="Select patient", command=self.select_patient)
-        self.select_button.pack()
-
-        # self.reset_button = tk.Button(self, text="Reset patient", command=self.res_pat)
-        # self.reset_button.pack()
-
-        self.rem_part_button = tk.Button(self, text="Remove part", command=self.rem_part)
-        self.rem_part_button.pack()
-
-        # self.remove_button = tk.Button(self, text="Remove patient", command=self.rem_pat)
-        # self.remove_button.pack()
-
-        self.unset_button = tk.Button(self, text="Unset patient", command=self.unset_pat)
-        self.unset_button.pack()
-
-        # Single-selection Listbox for choosing a part
-        self.parts_listbox = tk.Listbox(self, selectmode=tk.SINGLE, height=7, exportselection=False)
-        for i in range(1,8):
-            self.parts_listbox.insert(tk.END, i)
-        self.parts_listbox.pack()
-        # Button to assign selected part to self.parts
-        self.confirm_parts_button = tk.Button(self, text="Set Selected Part", command=self.set_selected_part)
-        self.confirm_parts_button.pack()
-
-        # Single-selection Listbox for choosing a part
-        self.port_listbox = tk.Listbox(self, selectmode=tk.SINGLE, height=10, exportselection=False)
-        for i in range(1,11):
-            self.port_listbox.insert(tk.END, i)
-        self.port_listbox.pack()
-        # Button to assign selected part to self.parts
-        self.confirm_port_button = tk.Button(self, text="Set COM Port", command=self.set_port)
-        self.confirm_port_button.pack()
-
-        # patient data
+        # --- Data & State ---
+        self.use_lab = use_lab
+        self.use_sim = use_sim
+        self.lab_recorder = None
+        
         self.name = None
         self.surname = None
         self.age = None
-
         self.parts = 0
         self.run_no = 0
         self.sel_pat = False
-        self.exper:Brain = None
-
+        self.exper: Brain = None
         self.data = []
         self.running = False
-
-        self.start_clicked = False # start button
         self.COM_port = None
 
-        # displayed patient info
-        self.info_label = tk.Label(self, text=f"{self.name}_{self.surname}_{self.age}")
-        self.info_label.pack()
-        self.label = tk.Label(self, text=f"Current Part:{self.parts} \nCurrent run:{self.run_no}")
-        self.label.pack()
-        self.run_status = tk.Label(self, text=f"Is Running:{self.running}")
-        self.run_status.pack()
-
-        # display COM port
-        self.port_info = tk.Label(self, text=f"COM{self.COM_port}")
-        self.port_info.pack()
-
+        # Ensure the data folder exists
         if not os.path.exists('data'):
             os.mkdir('data')
-        self.lab_recorder = socket.create_connection(("localhost", 22345))
-        self.lab_recorder.sendall(b"select all\n")
 
-    def set_port(self):
-        selected = self.port_listbox.curselection()
-        if selected:
-            self.COM_port = selected[0] + 1 # temporary fix 
-            # self.set_lab_dir()
-            self.update_COM_label()
-            # messagebox.showinfo("Part Set", f"Selected Part: {self.parts}")
+        if self.use_lab:
+            try:
+                self.lab_recorder = socket.create_connection(("localhost", 22345))
+                self.lab_recorder.sendall(b"select all\n")
+            except ConnectionRefusedError:
+                messagebox.showerror("Error", "Could not connect to LabRecorder (localhost:22345)")
+
+        if self.use_sim:
+            self.exper = SignalGen(1, 256, self.lab_recorder)
+
+        # GUI layout
+        main_frame = ttk.Frame(self, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Section 1: Patient Management
+        patient_frame = ttk.LabelFrame(main_frame, text="Patient Management", padding="10")
+        patient_frame.grid(row=0, column=0, sticky="ew", pady=(0, 15))
+        main_frame.columnconfigure(0, weight=1)
+
+        self.info_label = ttk.Label(patient_frame, text="No Patient Selected", font=("Helvetica", 12, "bold"))
+        self.info_label.grid(row=0, column=0, columnspan=3, pady=(0, 10))
+
+        self.select_button = ttk.Button(patient_frame, text="Select / New Patient", command=self.select_patient)
+        self.select_button.grid(row=1, column=0, padx=5, sticky="ew")
+        
+        self.unset_button = ttk.Button(patient_frame, text="Unset Patient", command=self.unset_pat)
+        self.unset_button.grid(row=1, column=1, padx=5, sticky="ew")
+        patient_frame.columnconfigure(0, weight=1)
+        patient_frame.columnconfigure(1, weight=1)
+
+        # Section 2: Configuration
+        config_frame = ttk.LabelFrame(main_frame, text="Configuration", padding="10")
+        config_frame.grid(row=1, column=0, sticky="ew", pady=(0, 15))
+        config_frame.columnconfigure(1, weight=1)
+
+        ttk.Label(config_frame, text="COM Port:").grid(row=0, column=0, sticky="w", pady=5)
+        self.port_combo = ttk.Combobox(config_frame, state="readonly", values=[i for i in range(1, 11)])
+        self.port_combo.grid(row=0, column=1, padx=10, sticky="ew")
+        self.confirm_port_button = ttk.Button(config_frame, text="Set Port", command=self.set_port)
+        self.confirm_port_button.grid(row=0, column=2, padx=5)
+
+        ttk.Label(config_frame, text="Session Part:").grid(row=1, column=0, sticky="w", pady=5)
+        self.parts_combo = ttk.Combobox(config_frame, state="readonly", values=[i for i in range(1, 8)])
+        self.parts_combo.grid(row=1, column=1, padx=10, sticky="ew")
+        self.confirm_parts_button = ttk.Button(config_frame, text="Set Part", command=self.set_selected_part)
+        self.confirm_parts_button.grid(row=1, column=2, padx=5)
+
+        self.rem_part_button = ttk.Button(config_frame, text="Remove Last Part", command=self.rem_part)
+        self.rem_part_button.grid(row=2, column=0, columnspan=3, pady=(10, 0), sticky="ew")
+
+        # Section 3: Recording Controls
+        control_frame = ttk.LabelFrame(main_frame, text="Recording Control", padding="10")
+        control_frame.grid(row=2, column=0, sticky="ew", pady=(0, 15))
+        control_frame.columnconfigure(0, weight=1)
+        control_frame.columnconfigure(1, weight=1)
+
+        self.start_button = ttk.Button(control_frame, text="START RECORDING", command=self.start_record)
+        self.start_button.grid(row=0, column=0, ipady=15, padx=5, sticky="ew")
+
+        self.stop_button = ttk.Button(control_frame, text="STOP", command=self.stop_record)
+        self.stop_button.grid(row=0, column=1, ipady=15, padx=5, sticky="ew")
+
+        # Section 4: Status Monitor
+        status_frame = ttk.LabelFrame(main_frame, text="System Status", padding="10")
+        status_frame.grid(row=3, column=0, sticky="nsew")
+        main_frame.rowconfigure(3, weight=1)
+
+        self.lbl_part_status = ttk.Label(status_frame, text="Current Part: 0")
+        self.lbl_part_status.grid(row=0, column=0, sticky="w", padx=10, pady=2)
+        self.lbl_run_status = ttk.Label(status_frame, text="Current Run: 0")
+        self.lbl_run_status.grid(row=1, column=0, sticky="w", padx=10, pady=2)
+        self.lbl_active_status = ttk.Label(status_frame, text="Is Running: False", foreground="red")
+        self.lbl_active_status.grid(row=2, column=0, sticky="w", padx=10, pady=2)
+        self.port_info = ttk.Label(status_frame, text="COM Port: Not Set")
+        self.port_info.grid(row=3, column=0, sticky="w", padx=10, pady=2)
+        self.lbl_sync_status = ttk.Label(status_frame, text="Sync Status: Idle")
+        self.lbl_sync_status.grid(row=4, column=0, sticky="w", padx=10, pady=2)
+
+    def toggle_ui_state(self, is_recording):
+        """
+        Disables or enables UI components based on recording state.
+        If is_recording is True, everything except STOP is disabled.
+        """
+        state = "disabled" if is_recording else "normal"
+        
+        # Disable/Enable Patient Controls
+        self.select_button.config(state=state)
+        self.unset_button.config(state=state)
+        
+        # Disable/Enable Configuration
+        self.port_combo.config(state=state)
+        self.confirm_port_button.config(state=state)
+        self.parts_combo.config(state=state)
+        self.confirm_parts_button.config(state=state)
+        self.rem_part_button.config(state=state)
+        
+        # Disable/Enable Start Button
+        self.start_button.config(state=state)
+
+    def send_msg(self, msg: str):
+        """
+        send message to LabRecorder instance     
+        """
+        if self.use_lab and self.lab_recorder:
+            try:
+                self.lab_recorder.sendall(msg)
+            except Exception as e:
+                print(f"Error sending to LabRecorder: {e}")
+
+    def send_start(self):
+        if self.use_sim:
+            self.exper.sendData("1_Hz", "256_Hz")
         else:
-            messagebox.showwarning("No Selection", "Please select a COM port.")
+            try:
+                self.exper = Brain(connect2headset(f"COM{self.COM_port}"))
+                self.thread = threading.Thread(target=self.exper.read_serial_data, daemon=True)
+                self.thread.start()
+                self.send_msg(b"start\n")
+            except:
+                self._wrong_port_()
+
+    def send_stop(self):
+        if self.use_sim:
+            self.exper.running = False
+            self.exper.stopData()
+        else:
+            self.exper.continue_running = False
+            self.exper.stop_serial_data()
+            self.send_msg(b"stop\n")
+            self.thread.join(timeout=2)
+        self.running = False
 
     def set_selected_part(self):
-        selected = self.parts_listbox.curselection()
-        if selected:
-            self.parts = selected[0] + 1 # temporary fix 
+        val = self.parts_combo.get()
+        if val:
+            self.parts = int(val)
             self.set_lab_dir()
             self.update_parts_label()
             messagebox.showinfo("Part Set", f"Selected Part: {self.parts}")
         else:
-            messagebox.showwarning("No Selection", "Please select a part.")
+            messagebox.showwarning("No Selection", "Please select a part from the list.")
 
-    def set_lab_dir(self,run = 1):
-        participant = f"{self.name}_{self.surname}_{self.age}"
-        # session = self.parts + 1 # current part maybe 0, but when data is saved, current part is 1
+    def get_participant_str(self):
+        return f"{self.name}_{self.surname}_{self.age}"
+
+    def set_lab_dir(self, run=1):
+        if not self.name: 
+            return
+        participant = self.get_participant_str()
         session = self.parts
-        param_str = f"{{run:{run}}} {{participant:{participant}}} {{session:{session}}} {{task:Default}} {{modality:eeg}}\n"
-        send_msg = b"filename {template:%p/%s/LabRecorder/%r.xdf} " + param_str.encode()
-        self.lab_recorder.sendall(send_msg)
+        # Template: %p = participant, %s = session, %r = run
+        param_str = f"{{run:{run}}} {{participant:{participant}}} {{session:{session}}} {{task:{run}}} {{modality:eeg}} {{block:{run}}}\n"
+        # LabRecorder stores in: Root / Participant / Session / LabRecorder / run.xdf
+        send_msg = b"filename {template:%p/%s/labrecorder/%b.xdf} " + param_str.encode()
+        self.send_msg(send_msg)
 
     def update_parts_label(self):
-        self.label.config(text=f"Current Part: {self.parts} \nCurrent Run:{self.run_no}")   
-        self.info_label.config(text=f"{self.name}_{self.surname}_{self.age}")        
-        self.run_status.config(text=f"Running status:{self.running}")
+        self.lbl_part_status.config(text=f"Current Part: {self.parts}")
+        self.lbl_run_status.config(text=f"Current Run: {self.run_no}")
+        if self.name:
+            pat_text = f"{self.name} {self.surname} ({self.age})"  
+        else: 
+            pat_text = "No Patient Selected"
+        self.info_label.config(text=pat_text)
+        self.lbl_active_status.config(text=f"Is Running: {self.running}", foreground="green" if self.running else "red")
 
     def update_COM_label(self):
-        self.port_info.config(text=f"COM{self.COM_port}")
+        self.port_info.config(text=f"COM Port: COM{self.COM_port}")
 
+    # Messages
     def _patient_selection_(self, text=''):
-        self.dialog = tk.Toplevel()
-        self.dialog.title("Patient select")
-        label = tk.Label(self.dialog, text=f"Patient {text} selected")
-        label.pack()
-
-        self.continue_button = tk.Button(
-            self.dialog, text="Continue", command=lambda: self.dialog.destroy())
-        self.continue_button.pack()
+        messagebox.showinfo("Selection Info", f"Patient {text} selected.")
 
     def _type_data_(self):
         dialog = tk.Toplevel()
-        dialog.title("Enter Patient Information")
-        dialog.geometry("300x200")
+        dialog.title("New Patient Entry")
+        dialog.geometry("350x250")
         
-        # Labels and Entry Fields
-        tk.Label(dialog, text="Name:").grid(row=0, column=0, padx=10, pady=5)
+        tk.Label(dialog, text="Name:").grid(row=0, column=0, padx=10, pady=10, sticky="e")
         entry_name = tk.Entry(dialog)
-        entry_name.grid(row=0, column=1, padx=10, pady=5)
-
-        tk.Label(dialog, text="Surname:").grid(row=1, column=0, padx=10, pady=5)
+        entry_name.grid(row=0, column=1, padx=10, pady=10)
+        tk.Label(dialog, text="Surname:").grid(row=1, column=0, padx=10, pady=10, sticky="e")
         entry_surname = tk.Entry(dialog)
-        entry_surname.grid(row=1, column=1, padx=10, pady=5)
-
-        tk.Label(dialog, text="Age:").grid(row=2, column=0, padx=10, pady=5)
+        entry_surname.grid(row=1, column=1, padx=10, pady=10)
+        tk.Label(dialog, text="Age:").grid(row=2, column=0, padx=10, pady=10, sticky="e")
         entry_age = tk.Entry(dialog)
-        entry_age.grid(row=2, column=1, padx=10, pady=5)
-
+        entry_age.grid(row=2, column=1, padx=10, pady=10)
 
         def validate_and_close():
             self.name = entry_name.get().strip()
             self.surname = entry_surname.get().strip()
             self.age = entry_age.get().strip()
+            
             if self.name and self.surname and self.age:
                 try:
-                    int(self.age)  # Ensure age is a number
-                    
-                    if not add_patient(self.name, self.surname, self.age):
-                        # messagebox.showwarning("Existing record", "Patient already exists")
+                    int(self.age)
+                    # Note: assuming add_patient is in utils
+                    try:
+                        exists = not add_patient(self.name, self.surname, self.age)
+                    except NameError:
+                        exists = False 
+
+                    if exists:
                         self._sel_existing_()
-                        dialog.destroy()
                     else:
                         self.sel_pat = True
                         self.parts = 1
                         self.set_lab_dir()
                         self.update_parts_label()
-                        dialog.destroy()
+                    dialog.destroy()
                 except ValueError:
                     messagebox.showwarning("Invalid Input", "Age must be a number.")
             else:
                 messagebox.showwarning("Missing Fields", "Please fill in all fields.")
 
-
-        # OK Button
-        ok_button = tk.Button(dialog, text="OK", command=validate_and_close)
-        ok_button.grid(row=3, column=0, columnspan=2, pady=10)
-
-        dialog.transient()  # Make the dialog modal
-        dialog.grab_set()  # Prevent interaction with the main window
-        self.wait_window(dialog)  # Wait for the dialog to close
+        ok_button = ttk.Button(dialog, text="Create Patient", command=validate_and_close)
+        ok_button.grid(row=3, column=0, columnspan=2, pady=20, sticky="ew", padx=20)
+        dialog.transient(self)
+        dialog.grab_set()
+        self.wait_window(dialog)
     
     def _sel_existing_(self):
-        sel_dialog = tk.Toplevel()
-        sel_dialog.title("Patient already exists")
-        sel_dialog.geometry("300x200")
-
-        def exit():
+        if messagebox.askyesno("Patient Exists", "Patient already exists. Select them?"):
+            self.parts = 1
+            self.set_lab_dir()
+            self.sel_pat = True
+            self.update_parts_label()
+        else:
             self.name = None
             self.surname = None
             self.age = None
-            sel_dialog.destroy()
-
-        def confirm():
-            self.parts = 1
-            self.set_lab_dir()
-            self.update_parts_label()
-            self.sel_pat = True
-            sel_dialog.destroy()
-
-        exit_button = tk.Button(sel_dialog, text="Exit", command=exit)
-        exit_button.grid(row=2, column=3, columnspan=2, pady=10)
-
-        confirm_button = tk.Button(sel_dialog, text="Confirm", command=confirm)
-        confirm_button.grid(row=2, column=1, columnspan=2, pady=10)
-
-        sel_dialog.transient()  # Make the dialog modal
-        sel_dialog.grab_set()  # Prevent interaction with the main window
-        self.wait_window(sel_dialog)  # Wait for the dialog to close
 
     def _type_run_(self):
-        sel_dialog = tk.Toplevel()
-        sel_dialog.title("Run section")
-        sel_dialog.geometry("300x200")
-
-        tk.Label(sel_dialog, text=f"Current part:{self.parts}").grid(row=1, column=1, padx=10, pady=5)
-        tk.Label(sel_dialog, text="Run number:").grid(row=2, column=0, padx=10, pady=5)
-        entry_run = tk.Entry(sel_dialog)
-        entry_run.grid(row=2, column=1, padx=10, pady=5)
-
-        def validate_and_close():
-            self.run_no = entry_run.get().strip()
-            if self.run_no:
-                try:
-                    self.run_no = int(self.run_no)  # Ensure age is a number
-                    self.set_lab_dir(self.run_no)
-                    self.update_parts_label()
-                    sel_dialog.destroy()
-                except ValueError:
-                    messagebox.showwarning("Invalid Input", "Run number must be a number.")
-            else:
-                messagebox.showwarning("Missing Fields", "Please fill in all fields.")
-
-        confirm_button = tk.Button(sel_dialog, text="Confirm", command=validate_and_close)
-        confirm_button.grid(row=2, column=1, columnspan=2, pady=10)
-
-        sel_dialog.transient()  # Make the dialog modal
-        sel_dialog.grab_set()  # Prevent interaction with the main window
-        self.wait_window(sel_dialog)  # Wait for the dialog to close
+        run_input = tk.simpledialog.askinteger("Run Number", f"Current Part: {self.parts}\nEnter Run Number:", parent=self, minvalue=1)
+        if run_input is not None:
+            self.run_no = run_input
+            self.set_lab_dir(self.run_no)
+            self.update_parts_label()
+            return True
+        return False
 
     def _wrong_port_(self):
-        sel_dialog = tk.Toplevel()
-        sel_dialog.title("Run section")
-        sel_dialog.geometry("300x200")
-        tk.Label(sel_dialog, text=f"Wrong port: COM{self.COM_port}").grid(row=2, column=1, columnspan=2, pady=10)
-        sel_dialog.transient()  # Make the dialog modal
-        sel_dialog.grab_set()  # Prevent interaction with the main window
-        self.wait_window(sel_dialog)
+        messagebox.showerror("Connection Error", f"Could not connect to COM{self.COM_port}")
+
+    def set_port(self):
+        val = self.port_combo.get()
+        if val:
+            self.COM_port = int(val)
+            self.update_COM_label()
+        else:
+            messagebox.showwarning("No Selection", "Please select a COM port from the list.")
 
     def res_pat(self):
         if not self.sel_pat:
             self._patient_selection_("not")
             return
-        reset_patient(self.name,self.surname,self.age)
+        try:
+            reset_patient(self.name, self.surname, self.age)
+        except NameError: pass
         self.parts = 0
         self.update_parts_label()
     
@@ -264,113 +307,138 @@ class MainWindow(tk.Tk):
         if not self.sel_pat:
             self._patient_selection_("not")
             return
-        remove_part(self.name,self.surname,self.age, self.parts)
+        try:
+            remove_part(self.name, self.surname, self.age, self.parts)
+        except NameError: pass
         if self.parts > 0:
             self.parts -= 1
         else:
             self.parts += 1
         self.update_parts_label()
 
-    def rem_pat(self):
-        if not self.sel_pat:
-            self._patient_selection_("not")
-            return
-        remove_patient(self.name,self.surname,self.age) 
-        self.name = None
-        self.surname = None
-        self.age = None
-        self.parts = 0
-        self.update_parts_label()
-
     def unset_pat(self):
-        if not self.sel_pat:
-            self._patient_selection_("not")
-            return
         self.name = None
         self.surname = None
         self.age = None
         self.parts = 0
-        self.update_parts_label()
         self.sel_pat = False
+        self.update_parts_label()
 
-    def start_record(self):
-        """
-        Start recording
-        """
-        if not self.sel_pat:
-            self._patient_selection_("not")
-            return
-        
-        # self.start_clicked = True
-        # while self.start_clicked:
-
-        # self._type_run_()
-        if not self.running:
-            self._type_run_()
-            print("Connecting...")
-            try:
-                self.exper = Brain(connect2headset(f"COM{self.COM_port}"))
-                # Run `read_serial_data()` in a separate thread
-                self.thread = threading.Thread(target=self.exper.read_serial_data, daemon=True)
-                self.thread.start()
-                self.running = True
-                # send TCP signal to start
-                self.lab_recorder.sendall(b"start\n")
-            except:
-                self._wrong_port_()
-                   
-    def stop_record(self):
-        """
-        Stop recording
-        """
-        if not self.sel_pat:
-            self._patient_selection_("not")
-            return
-        
-        if self.running:
-            print("Shutting down connection")
-            self.exper.continue_running = False  # Stop the loop in `read_serial_data()`
-            self.data = self.exper.stop_serial_data()
-            self.thread.join(timeout=2)  # Wait for the thread to stop
-            self.running = False
-            # self.start_clicked = False
-            # send TCP signal to stop
-            self.lab_recorder.sendall(b"stop\n")
-            # save data
-            #self.parts += 1
-            save_data(self.data, self.parts)
-            #self.parts += 1
-            #run = 1
-            # self.update_parts_label()
-            # self.set_lab_dir(self.run_no) # setup for next part
-
-    def abort_record(self):
-        if not self.sel_pat:
-            self._patient_selection_("not")
-            return
-        # debug button
-        if self.running:
-            print("Shutting down connection")
-            self.exper.continue_running = False  # Stop the loop in `read_serial_data()`
-            self.data = self.exper.stop_serial_data()
-            self.thread.join(timeout=2)  # Wait for the thread to stop
-            self.running = False
-            # self.start_clicked = False
-            # send TCP signal to stop
-            self.lab_recorder.sendall(b"stop\n")
-
+    # --- Recording & Processing Logic ---
+    
     def select_patient(self):
         if self.sel_pat:
-            self._patient_selection_()
+            messagebox.showinfo("Info", "Patient already selected. Unset first to change.")
             return
-        elif not self.sel_pat:
-            self.parts = 0
-            self.name = None
-            self.surname = None
-            self.age = None
+        
+        self.parts = 0
+        self.name = None
+        self.surname = None
+        self.age = None
+        self.update_parts_label()
+        self._type_data_()
+
+    def start_record(self):
+        if not self.sel_pat:
+            messagebox.showwarning("Required", "Please select a patient first.")
+            return
+
+        if not self.running:
+            if self._type_run_():
+                print("Connecting...")
+                self.send_start()
+                self.running = True
+                
+                # --- Lock the UI ---
+                self.toggle_ui_state(True)
+                
+                self.update_parts_label()
+                self.lbl_sync_status.config(text="Sync Status: Recording...")
+                   
+    def stop_record(self):
+        if not self.sel_pat:
+            return
+        if self.running:
+            print("Shutting down connection") 
+            self.send_stop()
             self.update_parts_label()
-            self._type_data_()
+            self.toggle_ui_state(False)
+            # Trigger Post-Processing
+            if self.use_lab:
+                threading.Thread(target=self._wait_and_process, daemon=True).start()
+
+    def _wait_and_process(self):
+        """
+        Calculates expected file path in the DATA folder, waits for it, runs sync,
+        and updates patients.json.
+        """
+        self.lbl_sync_status.config(text="Sync Status: Waiting for file...", foreground="orange")
+        part_str = self.get_participant_str()
+        expected_path = os.path.join(
+            os.getcwd(), 
+            "data", 
+            part_str, 
+            str(self.parts), 
+            "labrecorder", 
+            f"{self.run_no}.xdf"
+        )
+        print(f"Looking for: {expected_path}")
+        # wait loop
+        found = False
+        for _ in range(20):
+            if os.path.exists(expected_path):
+                found = True
+                break
+            time.sleep(0.5)
+        if found:
+            self.lbl_sync_status.config(text="Sync Status: Processing...", foreground="blue")
+            try:
+                csv_out = sync_post_process.process_and_save(expected_path)
+                if csv_out:
+                    self.lbl_sync_status.config(text="Sync Status: Saved CSV", foreground="green")
+                    success = add_run_path(self.name, self.surname, self.age, self.parts, self.run_no, csv_out)
+                    if success:
+                        print(f"[System] Successfully logged Run {self.run_no} to patients.json")
+                    else:
+                        print("[System] Failed to update patients.json")
+                else:
+                    self.lbl_sync_status.config(text="Sync Status: Error in Sync", foreground="red")
+            except Exception as e:
+                print(f"Sync error: {e}")
+                self.lbl_sync_status.config(text="Sync Status: Exception", foreground="red")
+        else:
+            print("File not found (LabRecorder path mismatch?)")
+            self.lbl_sync_status.config(text="Sync Status: File Not Found", foreground="red")
+
 
 if __name__ == "__main__":
-    app = MainWindow()
+    parser = argparse.ArgumentParser(description='App args')
+    parser.add_argument('use_lab', type=int, help='use labrecorder (1/0)')
+    parser.add_argument('use_sim', type=int, help='use simulator (1/0)')
+    args = parser.parse_args()
+
+    use_lab = bool(args.use_lab)
+    use_sim = bool(args.use_sim)
+    lab_proc = None
+
+    # LabRecorder process is needed for LSL integration
+    if use_lab:
+        try:
+            lab_proc = subprocess.Popen(["LabRecorder"])
+            time.sleep(2) 
+        except FileNotFoundError:
+            print("Warning: 'LabRecorder' command not found. Please start it manually.")
+        except Exception as e:
+            print(f"Error starting LabRecorder: {e}")
+
+    app = MainWindow(use_lab, use_sim)
     app.mainloop()
+
+    if lab_proc:
+        print("Terminating LabRecorder...")
+        lab_proc.terminate()
+        try:
+            lab_proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            print("Force killing LabRecorder...")
+            lab_proc.kill()

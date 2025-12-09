@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.signal import butter, lfilter
-
+from utils import *
 
 # Butterworth bandpass filter function
 def butter_bandpass(lowcut, highcut, fs, order=5):
@@ -29,24 +29,27 @@ def filter_eeg_bands(eeg_data, fs):
     }
 
     filtered_data = {}
-
     for band, (low, high) in bands.items():
         filtered_data[band] = bandpass_filter(eeg_data, low, high, fs)
-
     return filtered_data
 
 
+stream_list = show_xdf_data("%r")
+
+str_1 = stream_list[0]
+str_2 = stream_list[1]
+
+time_1 = str_1[0]
+time_2 = str_2[0]
+
+data_1 = str_1[1]
+data_2 = str_2[1]
+
+print("Timestamps of stream 1: ", time_1, f"\n Length: {time_1.shape}")
+print("Timestamps of stream 2: ", time_2, f"\n Length: {time_2.shape}")
+print("\n")
+print("Data from stream 1: ", data_1, f"\n Length: {data_1.shape}")
+print("Data from stream 2: ", data_2, f"\n Length: {data_2.shape}")
 
 
-fs = 256  # Hz
-n_samples = 1000
-n_channels = 14
 
-eeg_data = np.random.randn(n_samples, n_channels)
-
-
-filtered_eeg = filter_eeg_bands(eeg_data, fs)
-
-
-for band, data in filtered_eeg.items():
-    print(f"{band} band filtered data shape: {data.shape}")
